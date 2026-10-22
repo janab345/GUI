@@ -20,7 +20,7 @@ const FUEL_BURN_RATE = 0.35 // percent per second at full throttle
 
 const THROTTLE_RATE = 1 // full travel in one second while held
 const RCS_RATE = Math.PI / 9 // 20 deg/s
-const Y_AXIS = new Vector3(0, 1, 0)
+const Z_AXIS = new Vector3(0, 0, 1)
 
 export type Quat = [number, number, number, number]
 
@@ -74,10 +74,13 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
     (Number(controls.throttleUp) - Number(controls.throttleDown)) * THROTTLE_RATE * dt
   const throttle = clamp(state.throttle + throttleDelta, 0, 1)
 
-  const yawRate = (Number(controls.rcsRight) - Number(controls.rcsLeft)) * RCS_RATE
+  // Pitch about the screen-normal axis. On a lander, tilting points the engine
+  // off-vertical, which is what produces lateral motion. Yaw would not.
+  // Right key -> negative rotation about +Z -> nose leans right.
+  const pitchRate = (Number(controls.rcsLeft) - Number(controls.rcsRight)) * RCS_RATE
   let quaternion = state.quaternion
-  if (yawRate !== 0) {
-    const bodyRate = new Quaternion().setFromAxisAngle(Y_AXIS, yawRate * dt)
+  if (pitchRate !== 0) {
+    const bodyRate = new Quaternion().setFromAxisAngle(Z_AXIS, pitchRate * dt)
     const next = new Quaternion(...state.quaternion).multiply(bodyRate).normalize()
     quaternion = [next.x, next.y, next.z, next.w]
   }
@@ -111,10 +114,10 @@ export function thrustOf(state: VehicleState): number {
   return state.engineArmed && state.fuel > 0 ? state.throttle : 0
 }
 
-/** Heading from the quaternion, not from Euler angles. */
-export function headingDeg(quaternion: Quat): number {
-  const forward = new Vector3(0, 0, 1).applyQuaternion(new Quaternion(...quaternion))
-  return (Math.atan2(forward.x, forward.z) * 180) / Math.PI
+/** Tilt of the body axis away from vertical, +right / -left. */
+export function tiltDeg(quaternion: Quat): number {
+  const up = new Vector3(0, 1, 0).applyQuaternion(new Quaternion(...quaternion))
+  return (Math.atan2(up.x, up.y) * 180) / Math.PI
 }
 
 export function horizontalSpeed(state: VehicleState): number {

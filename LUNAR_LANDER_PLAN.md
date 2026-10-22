@@ -16,7 +16,8 @@ point. MATLAB and reinforcement learning come **after** a person can land it.
 
 - **Up / Down** only change main-engine throttle. Down does not reverse the ship;
   speed drops only when the engine points against the velocity.
-- **Left / Right** fire the two RCS jets and rotate the nose.
+- **Left / Right** fire the two RCS jets and **tilt** the nose (pitch). Tilting points
+  the engine off-vertical; that is what produces sideways motion. Yaw would not.
 - **Enter** toggles a raw-state panel.
 - Altitude, speeds, throttle, heading, phase, and time-left stay visible in the corner.
 
@@ -62,7 +63,7 @@ No gravity, no STEP, no MATLAB, no RL.
 **Done when:**
 
 1. Refresh shows **Braking at 15 km and 3:00**.
-2. **Right** turns the cone and the heading together.
+2. **Right** tilts the cone right and the **TILT** readout follows.
 3. **Up** grows the flame to 100 and **Down** brings it back **without sliding the ship**.
 4. The highlighted phase box advances when the timer hits zero.
 

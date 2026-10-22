@@ -61,7 +61,7 @@ npm run dev
 
 ### 4. Keyboard Flight
 - `↑ / ↓` ramp throttle up/down; they never translate the ship
-- `← / →` fire the RCS jets and yaw the vehicle; heading is read from the quaternion
+- `← / →` fire the RCS jets and pitch the vehicle; tilt is read from the quaternion
 - `Enter` toggles the raw-state panel
 - The phase clock is 3:00 per phase and advances on its own; Braking starts at 15 km
 
@@ -100,7 +100,7 @@ function LanderModel() {
 
 - **Attitude:** quaternion, rendered directly — no Euler angles in the state
 - **Descent profile:** 5 phases of 3:00 each (Braking → Terminal)
-- **Telemetry:** Altitude, horizontal/vertical speed, fuel, thrust, heading — standard mission control readouts
+- **Telemetry:** Altitude, horizontal/vertical speed, fuel, thrust, tilt — standard mission control readouts
 - **PDI:** Powered Descent Ignition — the 15 km to 0 km landing burn
 
 These are simplified for the Day 1 visualization. Real GNC adds Moon-fixed frames, gravity, and translation.

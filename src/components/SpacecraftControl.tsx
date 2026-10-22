@@ -52,7 +52,7 @@ export default function SpacecraftControl({
             <kbd>↑</kbd> <kbd>↓</kbd> throttle
           </span>
           <span>
-            <kbd>←</kbd> <kbd>→</kbd> RCS yaw
+            <kbd>←</kbd> <kbd>→</kbd> RCS pitch
           </span>
           <span>
             <kbd>Enter</kbd> raw state
@@ -77,7 +77,8 @@ export default function SpacecraftControl({
       <div className="control-section">
         <h4>Mode</h4>
         <p className="control-note">
-          Day 1 visualization: no gravity, no translation. Attitude is a quaternion.
+          Day 1 visualization: no gravity, no translation. Tilt redirects the thrust vector;
+          attitude is a quaternion.
         </p>
       </div>
     </div>

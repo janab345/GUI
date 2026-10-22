@@ -4,7 +4,7 @@ import MissionProfile from './components/MissionProfile'
 import Scene3D from './components/Scene3D'
 import SpacecraftControl from './components/SpacecraftControl'
 import { useVehicle } from './sim/useVehicle'
-import { headingDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
+import { tiltDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
 
 function App() {
   const { state, toggleArm, pressKey, releaseKey } = useVehicle()
@@ -25,7 +25,7 @@ function App() {
       <main className="app-main">
         <div className="scene-container">
           <Scene3D quaternion={state.quaternion} thrust={thrust} rcs={state.rcs} />
-          <Hud state={state} thrust={thrust} heading={headingDeg(state.quaternion)} />
+          <Hud state={state} thrust={thrust} tilt={tiltDeg(state.quaternion)} />
         </div>
         <aside className="sidebar">
           <MissionProfile

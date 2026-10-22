@@ -8,12 +8,12 @@ import {
 interface HudProps {
   state: VehicleState
   thrust: number
-  heading: number
+  tilt: number
 }
 
-export default function Hud({ state, thrust, heading }: HudProps) {
+export default function Hud({ state, thrust, tilt }: HudProps) {
   const altitudeKm = state.position[1] / 1000
-  const normalizedHeading = (heading + 360) % 360
+  const tiltLabel = Math.abs(tilt) < 0.5 ? '0°' : `${tilt > 0 ? 'R' : 'L'} ${Math.abs(tilt).toFixed(0)}°`
   const raw = {
     position: state.position.map((value) => Number(value.toFixed(1))),
     velocity: state.velocity.map((value) => Number(value.toFixed(1))),
@@ -40,8 +40,8 @@ export default function Hud({ state, thrust, heading }: HudProps) {
           <strong>{state.velocity[1].toFixed(1)} m/s</strong>
           <span>THR</span>
           <strong>{Math.round(thrust * 100)}%</strong>
-          <span>HDG</span>
-          <strong>{normalizedHeading.toFixed(0).padStart(3, '0')}°</strong>
+          <span>TILT</span>
+          <strong>{tiltLabel}</strong>
         </div>
         <div className="hud-hint">↑↓ throttle · ←→ RCS · ENTER raw state</div>
       </div>
