@@ -99,3 +99,5 @@ function LanderModel() {
 - **PDI:** Powered Descent Ignition — the 15km to 0km landing burn
 
 These are simplified for the MVP. Real GNC uses quaternions, not Euler angles, and Moon-fixed frames, not body-fixed.
+
+
