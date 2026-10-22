@@ -9,31 +9,43 @@ import { tiltDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
 function App() {
   const { state, toggleArm, pressKey, releaseKey, reset } = useVehicle()
   const thrust = thrustOf(state)
-  const phase = PHASES[state.phaseIndex]
+  const phaseSpec = PHASES[state.phaseIndex]
+  const phase = phaseSpec.name
+
+  const alerts: string[] = []
+  if (state.fuel < 20) alerts.push('LOW FUEL')
 
   return (
     <div className="app">
       <header className="app-header">
-        <div>
+        <div className="header-left">
           <h1>LLV PDI Console</h1>
         </div>
-        <span className={`status-indicator ${state.engineArmed ? '' : 'safe'}`}>
-          {state.engineArmed ? 'ENGINE ARMED' : 'ENGINE SAFE'}
-        </span>
+        <div className="header-alerts">
+          {alerts.map((alert) => (
+            <span key={alert} className="warning">
+              {alert}
+            </span>
+          ))}
+        </div>
+        <div className="header-right">
+          <span className={`status-indicator ${state.engineArmed ? '' : 'safe'}`}>
+            {state.engineArmed ? 'ENGINE ARMED' : 'ENGINE SAFE'}
+          </span>
+        </div>
       </header>
       <main className="app-main">
         <div className="scene-container">
           <Scene3D quaternion={state.quaternion} thrust={thrust} rcs={state.rcs} />
-          <Hud state={state} thrust={thrust} tilt={tiltDeg(state.quaternion)} />
-        </div>
-        <aside className="sidebar">
           <MissionProfile
             currentPhase={state.phaseIndex}
             phaseRemaining={state.phaseRemaining}
             phases={PHASES}
           />
+          <Hud state={state} thrust={thrust} tilt={tiltDeg(state.quaternion)} />
           <SpacecraftControl
             throttle={state.throttle}
+            throttleKeys={state.throttleKeys}
             engineArmed={state.engineArmed}
             rcs={state.rcs}
             onToggleArm={toggleArm}
@@ -47,10 +59,11 @@ function App() {
             verticalSpeed={state.velocity[1]}
             thrust={thrust}
             fuel={state.fuel}
-            engineArmed={state.engineArmed}
+            engines={phaseSpec.engines}
+            rcs={phaseSpec.rcs}
             phase={phase}
           />
-        </aside>
+        </div>
       </main>
     </div>
   )

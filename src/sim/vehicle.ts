@@ -10,13 +10,37 @@ import { Quaternion, Vector3 } from 'three'
  *   position, velocity, quaternion, throttle, RCS flags, phase, target
  */
 
-export const PHASES = ['Braking', 'Approach', 'Sensor Nav', 'Hover', 'Terminal'] as const
-export type Phase = (typeof PHASES)[number]
+/**
+ * Phase timings, engine counts, and RCS counts from
+ * `nt/PDI Realization.md` — "Accurate phase timing and constraints".
+ *
+ * The note leaves the last two phases open-ended; the trainer gives them
+ * 120 s and 30 s so the full run is 15:00.
+ */
+export interface PhaseSpec {
+  name: string
+  start: number
+  end: number
+  engines: number
+  rcs: number
+}
 
-export const PHASE_SECONDS = 180
+export const PHASES: readonly PhaseSpec[] = [
+  { name: 'Rough Braking', start: 0, end: 200, engines: 5, rcs: 0 },
+  { name: 'Fine Braking', start: 200, end: 400, engines: 4, rcs: 0 },
+  { name: 'Approach & Terminal', start: 400, end: 750, engines: 3, rcs: 4 },
+  { name: 'Hover / Touchdown Prep', start: 750, end: 870, engines: 1, rcs: 4 },
+  { name: 'Soft Touchdown', start: 870, end: 900, engines: 1, rcs: 2 },
+]
+
+export function phaseDuration(index: number): number {
+  const phase = PHASES[index] ?? PHASES[0]
+  return phase.end - phase.start
+}
+
 export const START_ALTITUDE_M = 15_000
 export const START_HORIZONTAL_SPEED = 200
-const FUEL_BURN_RATE = 0.35 // percent per second at full throttle
+const FUEL_BURN_RATE = 1.00// percent per second at full throttle
 
 const THROTTLE_RATE = 1 // full travel in one second while held
 const RCS_RATE = Math.PI / 9 // 20 deg/s
@@ -29,11 +53,17 @@ export interface RcsFlags {
   right: boolean
 }
 
+export interface ThrottleFlags {
+  up: boolean
+  down: boolean
+}
+
 export interface VehicleState {
   position: [number, number, number]
   velocity: [number, number, number]
   quaternion: Quat
   throttle: number
+  throttleKeys: ThrottleFlags
   engineArmed: boolean
   rcs: RcsFlags
   phaseIndex: number
@@ -56,10 +86,11 @@ export function createInitialState(): VehicleState {
     velocity: [0, 0, START_HORIZONTAL_SPEED],
     quaternion: [0, 0, 0, 1],
     throttle: 0,
+    throttleKeys: { up: false, down: false },
     engineArmed: true,
     rcs: { left: false, right: false },
     phaseIndex: 0,
-    phaseRemaining: PHASE_SECONDS,
+    phaseRemaining: phaseDuration(0),
     fuel: 100,
     target: [0, 0, 0],
     rawVisible: false,
@@ -90,7 +121,7 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
   if (phaseRemaining <= 0) {
     if (phaseIndex < PHASES.length - 1) {
       phaseIndex += 1
-      phaseRemaining += PHASE_SECONDS
+      phaseRemaining += phaseDuration(phaseIndex)
     } else {
       phaseRemaining = 0
     }
@@ -103,6 +134,7 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
     ...state,
     quaternion,
     throttle,
+    throttleKeys: { up: controls.throttleUp, down: controls.throttleDown },
     fuel,
     phaseIndex,
     phaseRemaining,

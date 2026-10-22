@@ -1,4 +1,10 @@
-import { createInitialState, PHASES, PHASE_SECONDS, type Quat, type VehicleState } from './vehicle'
+import {
+  createInitialState,
+  phaseDuration,
+  PHASES,
+  type Quat,
+  type VehicleState,
+} from './vehicle'
 
 const STORAGE_KEY = 'llv-pdi.vehicle.v1'
 
@@ -32,6 +38,9 @@ export function loadVehicleState(): VehicleState {
     const velocity = asVector(stored.velocity, 3)
     const target = asVector(stored.target, 3)
     const quaternion = asVector(stored.quaternion, 4)
+    const phaseIndex = isNumber(stored.phaseIndex)
+      ? clamp(Math.round(stored.phaseIndex), 0, PHASES.length - 1)
+      : base.phaseIndex
 
     return {
       ...base,
@@ -46,12 +55,10 @@ export function loadVehicleState(): VehicleState {
         left: typeof stored.rcs?.left === 'boolean' ? stored.rcs.left : base.rcs.left,
         right: typeof stored.rcs?.right === 'boolean' ? stored.rcs.right : base.rcs.right,
       },
-      phaseIndex: isNumber(stored.phaseIndex)
-        ? clamp(Math.round(stored.phaseIndex), 0, PHASES.length - 1)
-        : base.phaseIndex,
+      phaseIndex,
       phaseRemaining: isNumber(stored.phaseRemaining)
-        ? clamp(stored.phaseRemaining, 0, PHASE_SECONDS)
-        : base.phaseRemaining,
+        ? clamp(stored.phaseRemaining, 0, phaseDuration(phaseIndex))
+        : phaseDuration(phaseIndex),
       fuel: isNumber(stored.fuel) ? clamp(stored.fuel, 0, 100) : base.fuel,
       rawVisible: typeof stored.rawVisible === 'boolean' ? stored.rawVisible : base.rawVisible,
     }

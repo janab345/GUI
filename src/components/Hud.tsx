@@ -20,7 +20,7 @@ export default function Hud({ state, thrust, tilt }: HudProps) {
     quaternion: state.quaternion.map((value) => Number(value.toFixed(4))),
     throttle: Number(state.throttle.toFixed(2)),
     rcs: state.rcs,
-    phase: PHASES[state.phaseIndex],
+    phase: PHASES[state.phaseIndex].name,
     target: state.target,
   }
 
@@ -28,7 +28,7 @@ export default function Hud({ state, thrust, tilt }: HudProps) {
     <>
       <div className="hud">
         <div className="hud-top">
-          <span className="hud-phase">{PHASES[state.phaseIndex]}</span>
+          <span className="hud-phase">{PHASES[state.phaseIndex].name}</span>
           <span className="hud-clock">T-{formatClock(state.phaseRemaining)}</span>
         </div>
         <div className="hud-grid">
@@ -43,7 +43,6 @@ export default function Hud({ state, thrust, tilt }: HudProps) {
           <span>TILT</span>
           <strong>{tiltLabel}</strong>
         </div>
-        <div className="hud-hint">↑↓ throttle · ←→ RCS · ENTER raw state</div>
       </div>
 
       {state.rawVisible && (

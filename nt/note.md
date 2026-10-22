@@ -10,3 +10,4 @@ A lander has 6 DOF, and the console currently has only throttle + one tilt axis.
 - RCS translation: firing jets to slide without rotating
 - Secondary: attitude rate/damping, engine gimbal, fuel-based thrust limits
 
+- no need for other engines only 1 main Engine Thrust and 2 RCS for tilting right and left is what required for now. 

@@ -1,10 +1,11 @@
 import type { PointerEvent } from 'react'
-import type { RcsFlags } from '../sim/vehicle'
+import type { RcsFlags, ThrottleFlags } from '../sim/vehicle'
 
 export type HoldKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'
 
 interface SpacecraftControlProps {
   throttle: number
+  throttleKeys: ThrottleFlags
   engineArmed: boolean
   rcs: RcsFlags
   onToggleArm: () => void
@@ -15,6 +16,7 @@ interface SpacecraftControlProps {
 
 export default function SpacecraftControl({
   throttle,
+  throttleKeys,
   engineArmed,
   rcs,
   onToggleArm,
@@ -48,23 +50,11 @@ export default function SpacecraftControl({
       </div>
 
       <div className="control-section">
-        <h4>Hand Controller</h4>
-        <div className="key-grid">
-          <span>
-            <kbd>↑</kbd> <kbd>↓</kbd> throttle
-          </span>
-          <span>
-            <kbd>←</kbd> <kbd>→</kbd> RCS pitch
-          </span>
-          <span>
-            <kbd>Enter</kbd> raw state
-          </span>
-        </div>
         <div className="hold-grid">
-          <button className="hold-btn" {...holdProps('ArrowUp')}>
+          <button className={`hold-btn ${throttleKeys.up ? 'active' : ''}`} {...holdProps('ArrowUp')}>
             ▲ <span>THR</span>
           </button>
-          <button className="hold-btn" {...holdProps('ArrowDown')}>
+          <button className={`hold-btn ${throttleKeys.down ? 'active' : ''}`} {...holdProps('ArrowDown')}>
             ▼ <span>THR</span>
           </button>
           <button className={`hold-btn ${rcs.left ? 'active' : ''}`} {...holdProps('ArrowLeft')}>

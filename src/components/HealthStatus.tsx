@@ -4,7 +4,8 @@ interface HealthStatusProps {
   verticalSpeed: number
   thrust: number
   fuel: number
-  engineArmed: boolean
+  engines: number
+  rcs: number
   phase: string
 }
 
@@ -14,16 +15,13 @@ export default function HealthStatus({
   verticalSpeed,
   thrust,
   fuel,
-  engineArmed,
+  engines,
+  rcs,
   phase,
 }: HealthStatusProps) {
-  const warnings: string[] = []
-  if (fuel < 20) warnings.push('LOW FUEL')
-  if (!engineArmed) warnings.push('ENGINE SAFE')
-
   return (
     <div className="panel health-status">
-      <h3>Health & Status</h3>
+      <h3>Health &amp; Status</h3>
       <div className="telemetry-grid">
         <div className="telemetry-item">
           <span className="label">ALT</span>
@@ -42,6 +40,14 @@ export default function HealthStatus({
           <span className="value">{Math.round(thrust * 100)}%</span>
         </div>
         <div className="telemetry-item">
+          <span className="label">ENGINES</span>
+          <span className="value">{engines}</span>
+        </div>
+        <div className="telemetry-item">
+          <span className="label">RCS JETS</span>
+          <span className="value">{rcs}</span>
+        </div>
+        <div className="telemetry-item">
           <span className="label">PHASE</span>
           <span className="value">{phase}</span>
         </div>
@@ -50,15 +56,6 @@ export default function HealthStatus({
           <span className="value">{fuel.toFixed(1)}%</span>
         </div>
       </div>
-      {warnings.length > 0 && (
-        <div className="warnings">
-          {warnings.map((w) => (
-            <span key={w} className="warning">
-              {w}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

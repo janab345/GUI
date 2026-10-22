@@ -29,13 +29,16 @@ npm run preview
 | `Enter` | Toggle the raw vehicle-state panel. |
 
 On-screen hold buttons mirror the arrow keys. The phase clock runs on its own:
-five phases of **3:00** each, starting at **Braking, 15 km, 3:00**.
+**Rough Braking** (0–200 s, 5 engines) → **Fine Braking** (200–400 s, 4 engines) →
+**Approach & Terminal** (400–750 s, 3 engines + 4 RCS) →
+**Hover / Touchdown Prep** (750–870 s, 1 engine + 4 RCS) →
+**Soft Touchdown** (870–900 s, 1 engine + 2 RCS), starting at **15 km, T-3:20**.
 
 ## What is implemented
 
 - Quaternion attitude state (no Euler angles in the model), rendered directly by Three.js
 - Keyboard flight: throttle ramp, RCS pitch, engine arm/safe
-- Five-phase mission clock with automatic phase advance
+- Five-phase mission clock with automatic advance, per-phase engine and RCS counts
 - Corner HUD: phase, phase clock, altitude, horizontal/vertical speed, thrust, tilt
 - Raw-state panel with the same message shape intended for the future backend
 - Health/status telemetry derived from the shared state (no panel-side simulation)

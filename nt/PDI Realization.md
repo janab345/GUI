@@ -60,3 +60,20 @@ For now RL and MATLAB are hard to implement.
 Learn C++ in parallel — one hour a day — but do not put it on the MVP critical path. Ship the GUI first. Then, if the team needs higher fidelity, replace the Python plant with C++ or Simulink behind the same WebSocket protocol. The UI should not care what computes the state.
 
 
+## Accurate phase timing and constraints 
+
+LLV Descent, Landing Profile, and Control Parameters  
+  
+1.  Powered Descent Profile & Engine Control Sequence:  
+     
+      - 0 to 200 s (Rough Braking Phase): 5 Main Engines active. Primary navigation relying on Star Tracker and Sun Sensor, supported by NDL, VDM, and IMU.  
+      - 201 to 400 s (Fine Braking Phase): 4 Main Engines active. Primary navigation transitions to Star Tracker, Sun Sensor, and IMU, supported by LDS and SRA.  
+      - 401 to 750 s (Approach & Terminal Phase): 3 Main Engines active supplemented by 2 to 4 200 N RCS thrusters. Primary state estimation utilizes VDM, LDS, and SRA, with NDL and IMU as secondary.  
+      - 751 s to Terminal Velocity (Hovering / Touchdown Prep): 1 Main Engine with 4 200 N RCS thrusters.  
+      - Terminal Velocity to Soft Touchdown: 1 Main Engine with 2 200 N RCS thrusters. Primary sensor fusion across NDL, VDM, LDS, SRA, and IMU. Main Engine cutoff occurs at 2 m above the lunar surface, and RCS thrusters cutoff at 1 m.  
+  
+2.  Touchdown Safety Limits & Dynamics:  
+     
+      - Vertical & Lateral Speeds: Target terminal lateral velocities must be strictly under 0.5 m/s and vertical velocity < 1.0 m/s.  
+      - Attitude & Rates: Maintain attitude rates < 0.2 deg/s and landing site slope ≤ 10° to prevent structural tipping or impact damage.  
+      - Landing Accuracy: Autonomous guidance target landing within a 100-meter diameter landing ellipse.  

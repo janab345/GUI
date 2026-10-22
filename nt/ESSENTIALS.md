@@ -39,7 +39,7 @@ critical path for this sprint.
 ## 1. The whole app in one paragraph
 
 > You press arrow keys. Those keys become two commands: `throttle` and `rcs`
-> (turn left / right). A pure function `stepState()` takes the current vehicle
+> (turn l'eft / right). A pure function `stepState()` takes the current vehicle
 > state plus those commands, advances time by one small step, applies gravity
 > and thrust, and returns a new state. The 3D scene and the HUD both simply
 > **draw** that state. Nothing else simulates.
