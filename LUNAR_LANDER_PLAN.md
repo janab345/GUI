@@ -35,7 +35,8 @@ position, velocity, quaternion, throttle, RCS flags, phase, target
 
 ## Stack
 
-- Plain **JavaScript, HTML, CSS**. No TypeScript.
+- **Plain JavaScript, HTML, CSS** was the original call. **Superseded:** the master
+  plan and the existing scaffold are React + TypeScript + Vite. Stay in TypeScript.
 - Node/Express on day 1; **WebSocket** once the plant moves to Python.
 - **Three.js** for the lander, after a box on a canvas proves the panel works.
 - Convert the `.step` file **once** to glTF — browsers cannot load STEP.

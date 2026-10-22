@@ -8,8 +8,9 @@ A frontend-only MVP for the Lunar Landing Vehicle (LLV) PDI console. Four module
 |---|---|---|
 | 3D Scene | `src/components/Scene3D.tsx` | Three.js canvas with lander model, stars, grid, orbit controls. Rotates on attitude input, shows thrust flame. |
 | Mission Profile | `src/components/MissionProfile.tsx` | 5-phase timeline with active/complete states. |
-| Spacecraft Control | `src/components/SpacecraftControl.tsx` | Ignition toggle, throttle slider, roll/pitch/yaw sliders, phase buttons. |
-| Health & Status | `src/components/HealthStatus.tsx` | Live telemetry grid with simulated data that responds to throttle/ignition. |
+| Spacecraft Control | `src/components/SpacecraftControl.tsx` | Engine arm, throttle readout, keyboard/hold-button flight controls. |
+| Health & Status | `src/components/HealthStatus.tsx` | Telemetry derived from the shared vehicle state. |
+| HUD | `src/components/Hud.tsx` | Corner phase/clock/altitude/speed readout + Enter raw-state panel. |
 
 ## Project Structure
 
@@ -18,13 +19,17 @@ pdi-gui/
 ├── index.html
 ├── src/
 │   ├── main.tsx              # Entry point
-│   ├── App.tsx               # Layout + state (attitude, ignition, throttle, phase)
+│   ├── App.tsx               # Layout; wires the shared vehicle state to panels
 │   ├── index.css             # Dark mission-control theme
+│   ├── sim/
+│   │   ├── vehicle.ts        # State type, initial state, pure step(), HUD math
+│   │   └── useVehicle.ts     # Keyboard input, rAF loop, ~30 Hz snapshots
 │   └── components/
-│       ├── Scene3D.tsx       # 3D canvas + lander model
+│       ├── Scene3D.tsx       # 3D canvas + lander, driven by the quaternion
 │       ├── MissionProfile.tsx
 │       ├── SpacecraftControl.tsx
-│       └── HealthStatus.tsx
+│       ├── HealthStatus.tsx
+│       └── Hud.tsx
 └── public/                   # Drop GLB files here when ready
 ```
 
@@ -37,27 +42,28 @@ npm run dev
 
 ## Key Concepts to Learn
 
-### 1. React State Management
-- `App.tsx` holds all state: `attitude`, `ignitionOn`, `throttle`, `currentPhase`
-- State is passed down to components as props
-- No external state library — just `useState`
+### 1. Shared Vehicle State
+- `src/sim/vehicle.ts` defines one `VehicleState`: position, velocity, quaternion, throttle, RCS flags, phase, target
+- `useVehicle()` owns the state and advances it once per animation frame via the pure `stepState()`
+- Panels never simulate; they render the same state message (the future Python/WebSocket seam)
 
 ### 2. Three.js via React Three Fiber
 - `<Canvas>` replaces the WebGL renderer
 - `<mesh>`, `<cylinderGeometry>`, `<sphereGeometry>` are declarative Three.js objects
-- `useFrame()` runs every animation frame — used to update lander rotation
+- `useFrame()` runs every animation frame — used to slerp the lander toward the state quaternion
 - `<OrbitControls>` lets you drag to rotate the camera
 - `<Stars>` and `<Grid>` are helpers from `@react-three/drei`
 
 ### 3. Component Communication
-- `SpacecraftControl` calls `onIgnitionToggle()`, `onThrottleChange()`, etc.
-- `App.tsx` updates state → passes new props → `Scene3D` re-renders with new attitude/thrust
-- `HealthStatus` receives `throttle` and `ignitionOn` as props and simulates telemetry
+- `SpacecraftControl` reports engine-arm and held keys (buttons mirror the keyboard)
+- `App.tsx` reads the state → passes new props → `Scene3D` renders the new attitude/thrust
+- `HealthStatus` receives derived values as props; it holds no state of its own
 
-### 4. Simulated Telemetry
-- `HealthStatus` uses `useEffect` + `setInterval` to update values every 100ms
-- When ignition is on: altitude decreases, fuel burns, thrust increases
-- When off: altitude slowly increases (drift), velocity decays
+### 4. Keyboard Flight
+- `↑ / ↓` ramp throttle up/down; they never translate the ship
+- `← / →` fire the RCS jets and yaw the vehicle; heading is read from the quaternion
+- `Enter` toggles the raw-state panel
+- The phase clock is 3:00 per phase and advances on its own; Braking starts at 15 km
 
 ## How to Extend
 
@@ -74,13 +80,12 @@ function LanderModel() {
 }
 ```
 
-### Add Real Physics
-- Replace the `useEffect` simulation in `HealthStatus` with a WebSocket connection to a Python/MATLAB backend
+### Replace the TS Kinematics
+- `stepState()` in `sim/vehicle.ts` is the only place physics advances; replace it with a WebSocket adapter
 - The UI doesn't care what computes the state — that's the `SimAdapter` seam
 
 ### Add Keyboard Controls
-- Add a `useEffect` in `App.tsx` that listens for arrow keys
-- Update `attitude` state on keypress — `Scene3D` will respond automatically
+- Done: `useVehicle()` listens for arrow keys and `Enter`, and the on-screen hold buttons share the same key set
 
 ## Learning Path
 
@@ -93,11 +98,11 @@ function LanderModel() {
 
 ## Space Concepts Used in This MVP
 
-- **Coordinate frames:** Roll (X), Pitch (Y), Zaw (Z) — simplified, not real aerospace convention
-- **Descent profile:** 5 phases from approach to landing
-- **Telemetry:** Altitude, velocity, fuel, thrust, mode, link — standard mission control readouts
-- **PDI:** Powered Descent Ignition — the 15km to 0km landing burn
+- **Attitude:** quaternion, rendered directly — no Euler angles in the state
+- **Descent profile:** 5 phases of 3:00 each (Braking → Terminal)
+- **Telemetry:** Altitude, horizontal/vertical speed, fuel, thrust, heading — standard mission control readouts
+- **PDI:** Powered Descent Ignition — the 15 km to 0 km landing burn
 
-These are simplified for the MVP. Real GNC uses quaternions, not Euler angles, and Moon-fixed frames, not body-fixed.
+These are simplified for the Day 1 visualization. Real GNC adds Moon-fixed frames, gravity, and translation.
 
 

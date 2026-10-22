@@ -1,101 +1,84 @@
+import type { PointerEvent } from 'react'
+import type { RcsFlags } from '../sim/vehicle'
+
+export type HoldKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'
+
 interface SpacecraftControlProps {
-  ignitionOn: boolean
   throttle: number
-  attitude: { roll: number; pitch: number; yaw: number }
-  currentPhase: number
-  onIgnitionToggle: () => void
-  onThrottleChange: (value: number) => void
-  onAttitudeChange: (axis: 'roll' | 'pitch' | 'yaw', value: number) => void
-  onPhaseSelect: (phase: number) => void
+  engineArmed: boolean
+  rcs: RcsFlags
+  onToggleArm: () => void
+  onPressKey: (key: HoldKey) => void
+  onReleaseKey: (key: HoldKey) => void
 }
 
-const PHASE_NAMES = ['Approach', 'Braking', 'Descent', 'Terminal', 'Landed']
-
 export default function SpacecraftControl({
-  ignitionOn,
   throttle,
-  attitude,
-  currentPhase,
-  onIgnitionToggle,
-  onThrottleChange,
-  onAttitudeChange,
-  onPhaseSelect,
+  engineArmed,
+  rcs,
+  onToggleArm,
+  onPressKey,
+  onReleaseKey,
 }: SpacecraftControlProps) {
+  const holdProps = (key: HoldKey) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      onPressKey(key)
+    },
+    onPointerUp: () => onReleaseKey(key),
+    onPointerCancel: () => onReleaseKey(key),
+    onPointerLeave: () => onReleaseKey(key),
+  })
+
   return (
     <div className="panel spacecraft-control">
       <h3>Spacecraft Control</h3>
 
       <div className="control-section">
-        <h4>Ignition</h4>
-        <button className={`ignition-btn ${ignitionOn ? 'on' : ''}`} onClick={onIgnitionToggle}>
-          {ignitionOn ? 'IGNITION ON' : 'IGNITION OFF'}
+        <h4>Main Engine</h4>
+        <button className={`ignition-btn ${engineArmed ? 'on' : ''}`} onClick={onToggleArm}>
+          {engineArmed ? 'ENGINE ARMED' : 'ENGINE SAFE'}
         </button>
+        <div className="throttle-bar" aria-label={`Throttle ${Math.round(throttle * 100)} percent`}>
+          <div className="throttle-fill" style={{ width: `${throttle * 100}%` }} />
+        </div>
+        <div className="throttle-caption">THROTTLE {Math.round(throttle * 100)}%</div>
       </div>
 
       <div className="control-section">
-        <h4>Throttle: {Math.round(throttle * 100)}%</h4>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={throttle}
-          onChange={(e) => onThrottleChange(parseFloat(e.target.value))}
-        />
-      </div>
-
-      <div className="control-section">
-        <h4>Attitude</h4>
-        <div className="attitude-controls">
-          <label>
-            Roll
-            <input
-              type="range"
-              min="-30"
-              max="30"
-              value={attitude.roll}
-              onChange={(e) => onAttitudeChange('roll', parseFloat(e.target.value))}
-            />
-            <span>{attitude.roll.toFixed(1)}°</span>
-          </label>
-          <label>
-            Pitch
-            <input
-              type="range"
-              min="-30"
-              max="30"
-              value={attitude.pitch}
-              onChange={(e) => onAttitudeChange('pitch', parseFloat(e.target.value))}
-            />
-            <span>{attitude.pitch.toFixed(1)}°</span>
-          </label>
-          <label>
-            Yaw
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              value={attitude.yaw}
-              onChange={(e) => onAttitudeChange('yaw', parseFloat(e.target.value))}
-            />
-            <span>{attitude.yaw.toFixed(1)}°</span>
-          </label>
+        <h4>Hand Controller</h4>
+        <div className="key-grid">
+          <span>
+            <kbd>↑</kbd> <kbd>↓</kbd> throttle
+          </span>
+          <span>
+            <kbd>←</kbd> <kbd>→</kbd> RCS yaw
+          </span>
+          <span>
+            <kbd>Enter</kbd> raw state
+          </span>
+        </div>
+        <div className="hold-grid">
+          <button className="hold-btn" {...holdProps('ArrowUp')}>
+            ▲ <span>THR</span>
+          </button>
+          <button className="hold-btn" {...holdProps('ArrowDown')}>
+            ▼ <span>THR</span>
+          </button>
+          <button className={`hold-btn ${rcs.left ? 'active' : ''}`} {...holdProps('ArrowLeft')}>
+            ◀ <span>RCS</span>
+          </button>
+          <button className={`hold-btn ${rcs.right ? 'active' : ''}`} {...holdProps('ArrowRight')}>
+            ▶ <span>RCS</span>
+          </button>
         </div>
       </div>
 
       <div className="control-section">
-        <h4>Mission Phase</h4>
-        <div className="phase-buttons">
-          {PHASE_NAMES.map((phase, i) => (
-            <button
-              key={i}
-              className={`phase-btn ${i === currentPhase ? 'active' : ''}`}
-              onClick={() => onPhaseSelect(i)}
-            >
-              {phase}
-            </button>
-          ))}
-        </div>
+        <h4>Mode</h4>
+        <p className="control-note">
+          Day 1 visualization: no gravity, no translation. Attitude is a quaternion.
+        </p>
       </div>
     </div>
   )

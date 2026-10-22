@@ -1,44 +1,55 @@
-import { useState } from 'react'
-import Scene3D from './components/Scene3D'
-import MissionProfile from './components/MissionProfile'
-import SpacecraftControl from './components/SpacecraftControl'
+import Hud from './components/Hud'
 import HealthStatus from './components/HealthStatus'
-
-const PHASES = ['Approach', 'Braking', 'Descent', 'Terminal', 'Landed']
+import MissionProfile from './components/MissionProfile'
+import Scene3D from './components/Scene3D'
+import SpacecraftControl from './components/SpacecraftControl'
+import { useVehicle } from './sim/useVehicle'
+import { headingDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
 
 function App() {
-  const [attitude, setAttitude] = useState({ roll: 0, pitch: 0, yaw: 0 })
-  const [ignitionOn, setIgnitionOn] = useState(false)
-  const [throttle, setThrottle] = useState(0.5)
-  const [currentPhase, setCurrentPhase] = useState(0)
-
-  const handleAttitudeChange = (axis: 'roll' | 'pitch' | 'yaw', value: number) => {
-    setAttitude((prev) => ({ ...prev, [axis]: value }))
-  }
+  const { state, toggleArm, pressKey, releaseKey } = useVehicle()
+  const thrust = thrustOf(state)
+  const phase = PHASES[state.phaseIndex]
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>ORBITBeyond — LLV PDI Console</h1>
-        <span className="status-indicator">LIVE</span>
+        <div>
+          <h1>ORBITBeyond — LLV PDI Console</h1>
+          <p className="app-subtitle">Day 1 · visualization mode · no gravity</p>
+        </div>
+        <span className={`status-indicator ${state.engineArmed ? '' : 'safe'}`}>
+          {state.engineArmed ? 'ENGINE ARMED' : 'ENGINE SAFE'}
+        </span>
       </header>
       <main className="app-main">
         <div className="scene-container">
-          <Scene3D attitude={attitude} thrust={ignitionOn ? throttle : 0} />
+          <Scene3D quaternion={state.quaternion} thrust={thrust} rcs={state.rcs} />
+          <Hud state={state} thrust={thrust} heading={headingDeg(state.quaternion)} />
         </div>
         <aside className="sidebar">
-          <MissionProfile currentPhase={currentPhase} phases={PHASES} />
-          <SpacecraftControl
-            ignitionOn={ignitionOn}
-            throttle={throttle}
-            attitude={attitude}
-            currentPhase={currentPhase}
-            onIgnitionToggle={() => setIgnitionOn(!ignitionOn)}
-            onThrottleChange={setThrottle}
-            onAttitudeChange={handleAttitudeChange}
-            onPhaseSelect={setCurrentPhase}
+          <MissionProfile
+            currentPhase={state.phaseIndex}
+            phaseRemaining={state.phaseRemaining}
+            phases={PHASES}
           />
-          <HealthStatus throttle={throttle} ignitionOn={ignitionOn} />
+          <SpacecraftControl
+            throttle={state.throttle}
+            engineArmed={state.engineArmed}
+            rcs={state.rcs}
+            onToggleArm={toggleArm}
+            onPressKey={pressKey}
+            onReleaseKey={releaseKey}
+          />
+          <HealthStatus
+            altitude={state.position[1]}
+            horizontalSpeed={horizontalSpeed(state)}
+            verticalSpeed={state.velocity[1]}
+            thrust={thrust}
+            fuel={state.fuel}
+            engineArmed={state.engineArmed}
+            phase={phase}
+          />
         </aside>
       </main>
     </div>
