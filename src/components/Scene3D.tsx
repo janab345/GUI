@@ -31,15 +31,15 @@ function Lander({ quaternion, thrust, rcs }: LanderProps) {
     <group ref={group}>
       <mesh position={[0, 0, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 1.2, 16]} />
-        <meshStandardMaterial color="#2c363e" metalness={0.2} roughness={0.55} emissive="#2c363e" emissiveIntensity={0.35} />
+        <meshStandardMaterial color="#535353" metalness={0.2} roughness={0.55} emissive="#535353" emissiveIntensity={0.35} />
       </mesh>
       <mesh position={[0, 0.8, 0]}>
         <sphereGeometry args={[0.35, 16, 16]} />
-        <meshStandardMaterial color="#2c363e" metalness={0.2} roughness={0.45} emissive="#2c363e" emissiveIntensity={0.35} />
+        <meshStandardMaterial color="#535353" metalness={0.2} roughness={0.45} emissive="#535353" emissiveIntensity={0.35} />
       </mesh>
       <mesh position={[0, -0.8, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.4, 0.6, 16, 1, true]} />
-        <meshStandardMaterial color="#2c363e" metalness={0.2} roughness={0.6} emissive="#2c363e" emissiveIntensity={0.3} side={2} />
+        <meshStandardMaterial color="#535353" metalness={0.2} roughness={0.6} emissive="#535353" emissiveIntensity={0.3} side={2} />
       </mesh>
 
       {/* Nose boom: makes the tilt direction visible on screen. */}
@@ -83,11 +83,11 @@ function Lander({ quaternion, thrust, rcs }: LanderProps) {
           >
             <mesh position={[0, -0.4, 0]}>
               <cylinderGeometry args={[0.03, 0.03, 0.8, 8]} />
-              <meshStandardMaterial color="#2c363e" metalness={0.2} roughness={0.55} emissive="#2c363e" emissiveIntensity={0.35} />
+              <meshStandardMaterial color="#535353" metalness={0.2} roughness={0.55} emissive="#535353" emissiveIntensity={0.35} />
             </mesh>
             <mesh position={[0, -0.8, 0]}>
               <cylinderGeometry args={[0.08, 0.12, 0.05, 8]} />
-              <meshStandardMaterial color="#2c363e" metalness={0.2} roughness={0.7} emissive="#2c363e" emissiveIntensity={0.25} />
+              <meshStandardMaterial color="#535353" metalness={0.2} roughness={0.7} emissive="#535353" emissiveIntensity={0.25} />
             </mesh>
           </group>
         )
