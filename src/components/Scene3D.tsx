@@ -1,16 +1,19 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { Grid, OrbitControls, Stars, useGLTF } from '@react-three/drei'
-import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
 import { BufferGeometry, Group, Matrix3, Mesh, Quaternion, Vector3 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Quat, RcsFlags } from '../sim/vehicle'
 
 /**
- * CAD export of the CX-3 lander. The .gltf is a JSON file that references an
- * external buffer (`CX3 for PDI.bin`) that must sit next to it in /public.
+ * Lander model in /public.
+ *
+ * `cx3-pdi.glb` is built from the FreeCAD OBJ export
+ * (`V4_CX3_LANDER (Meshed).obj`) with `scripts/obj-to-glb.cjs`: one merged
+ * mesh, smooth normals, spatially clustered to keep it small.
  */
 const MODEL_URL =
-  new URLSearchParams(window.location.search).get('model') || '/CX3 for PDI.gltf'
+  new URLSearchParams(window.location.search).get('model') || '/cx3-pdi.glb'
 
 /** Height of the rendered lander in scene units. */
 const MODEL_HEIGHT = 2.6
@@ -30,6 +33,14 @@ class ModelBoundary extends Component<
 
   static getDerivedStateFromError() {
     return { failed: true }
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn(
+      '[Scene3D] Lander model failed to load. Is the companion buffer ' +
+        '`CX3 for PDI.bin` present in /public?',
+      error,
+    )
   }
 
   render() {
@@ -170,10 +181,6 @@ function Lander({ quaternion, thrust, rcs }: LanderProps) {
   const group = useRef<Group>(null)
   const flame = useRef<Mesh>(null)
   const target = useMemo(() => new Quaternion(...quaternion), [quaternion])
-  const three = useThree()
-  useEffect(() => {
-    ;(window as unknown as Record<string, unknown>).__llvScene = three.scene
-  }, [three.scene])
 
   useFrame((_, delta) => {
     if (group.current) {

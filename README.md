@@ -51,6 +51,26 @@ with the rest of the vehicle state.
 - Vehicle state persisted to `localStorage` and restored on refresh (the mission clock
   pauses while the page is closed); **RESET MISSION** starts a clean run
 
+## 3D model
+
+The lander is rendered from `public/cx3-pdi.glb`. It is generated from the
+FreeCAD export in `assets/` with `scripts/obj-to-glb.cjs`:
+
+```
+node scripts/obj-to-glb.cjs "assets/V4_CX3_LANDER (Meshed).obj" public/cx3-pdi.glb --grid 400
+```
+
+- The 121 MB OBJ (622 k vertices, 1.25 M triangles) becomes one merged mesh
+  with smooth normals; `--grid 400` clusters vertices spatially and cuts it to
+  193 k vertices / 422 k triangles (≈10 MB) before it ever reaches the browser.
+- The scene auto-fits the model: scaled to a fixed height, centred, engine bell
+  at the bottom.
+- If the model cannot be fetched, the console falls back to the primitive
+  placeholder lander instead of failing.
+- Append `?model=/some-other.glb` to the URL to preview a different export.
+- `node scripts/gltf-to-glb.cjs <file.gltf>` packs a `.gltf` + external `.bin`
+  pair into a single self-contained `.glb`.
+
 ## Architecture
 
 One state object flows through the whole UI:
