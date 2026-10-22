@@ -4,3 +4,9 @@
 - Skip: advanced R3F patterns, shaders, drei deep-dive, TS generics.
 
 
+A lander has 6 DOF, and the console currently has only throttle + one tilt axis. Missing:
+- Translation: lateral left/right drift, fore/aft motion, and vertical descent (altitude actually changing)
+- Rotation: full pitch (fore/aft tilt), roll (left/right tilt), and yaw (heading) — currently one tilt axis only
+- RCS translation: firing jets to slide without rotating
+- Secondary: attitude rate/damping, engine gimbal, fuel-based thrust limits
+

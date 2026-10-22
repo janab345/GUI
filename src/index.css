@@ -1,12 +1,13 @@
 :root {
   --bg: #0a0e14;
   --panel-bg: #111827;
+  --chrome-bg: #1E2031;
   --border: #1f2937;
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --accent: #00ff88;
-  --accent-dim: #00cc66;
-  --warn: #ff4444;
+  --text: #e8d9af;
+  --text-h: #e8d9af;
+  --accent: #689a6a;
+  --accent-dim: #689a6a;
+  --warn: #f95039;
   --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
   font-family: var(--mono);
@@ -41,7 +42,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: var(--panel-bg);
+  background: var(--chrome-bg);
   border-bottom: 1px solid var(--border);
 }
 
@@ -87,7 +88,7 @@ body {
 
 .sidebar {
   width: 340px;
-  background: var(--panel-bg);
+  background: var(--chrome-bg);
   border-left: 1px solid var(--border);
   overflow-y: auto;
   padding: 16px;
@@ -130,8 +131,8 @@ body {
 
 .phase.active {
   opacity: 1;
-  background: rgba(0, 255, 136, 0.08);
-  border: 1px solid rgba(0, 255, 136, 0.3);
+  background: rgba(104, 154, 106, 0.15);
+  border: 1px solid rgba(104, 154, 106, 0.45);
 }
 
 .phase.complete {
@@ -286,7 +287,7 @@ kbd {
 }
 
 .hold-btn.active {
-  background: rgba(0, 255, 136, 0.15);
+  background: rgba(104, 154, 106, 0.25);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -324,7 +325,7 @@ kbd {
   min-width: 230px;
   padding: 12px 14px;
   background: rgba(10, 14, 20, 0.82);
-  border: 1px solid rgba(0, 255, 136, 0.35);
+  border: 1px solid rgba(104, 154, 106, 0.5);
   border-radius: 6px;
   backdrop-filter: blur(4px);
   pointer-events: none;
@@ -462,7 +463,7 @@ kbd {
 
 .warning {
   padding: 4px 8px;
-  background: rgba(255, 68, 68, 0.15);
+  background: rgba(249, 80, 57, 0.15);
   border: 1px solid var(--warn);
   border-radius: 4px;
   color: var(--warn);

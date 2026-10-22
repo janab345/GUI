@@ -15,8 +15,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div>
-          <h1>ORBITBeyond — LLV PDI Console</h1>
-          <p className="app-subtitle">Day 1 · visualization mode · no gravity</p>
+          <h1>LLV PDI Console</h1>
         </div>
         <span className={`status-indicator ${state.engineArmed ? '' : 'safe'}`}>
           {state.engineArmed ? 'ENGINE ARMED' : 'ENGINE SAFE'}
