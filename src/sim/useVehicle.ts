@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { clearVehicleState, loadVehicleState, saveVehicleState } from './persistence'
 import { createInitialState, stepState, type Controls, type VehicleState } from './vehicle'
 
 const RENDER_INTERVAL_MS = 33 // HUD ~30 Hz; the 3D scene smooths its own attitude
+const SAVE_INTERVAL_MS = 500
 
 function controlsFromKeys(keys: Set<string>): Controls {
   return {
@@ -13,7 +15,7 @@ function controlsFromKeys(keys: Set<string>): Controls {
 }
 
 export function useVehicle() {
-  const [state, setState] = useState<VehicleState>(createInitialState)
+  const [state, setState] = useState<VehicleState>(loadVehicleState)
   const stateRef = useRef(state)
   const keys = useRef(new Set<string>())
 
@@ -37,6 +39,12 @@ export function useVehicle() {
   const releaseKey = useCallback((key: string) => {
     keys.current.delete(key)
   }, [])
+
+  const reset = useCallback(() => {
+    keys.current.clear()
+    clearVehicleState()
+    commit(createInitialState())
+  }, [commit])
 
   useEffect(() => {
     const heldKeys = keys.current
@@ -71,6 +79,7 @@ export function useVehicle() {
     let frame = 0
     let last = performance.now()
     let lastRender = 0
+    let lastSave = 0
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1)
@@ -82,11 +91,30 @@ export function useVehicle() {
         lastRender = now
         setState(next)
       }
+      if (now - lastSave >= SAVE_INTERVAL_MS) {
+        lastSave = now
+        saveVehicleState(next)
+      }
       frame = requestAnimationFrame(tick)
     }
 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
+  }, [])
+
+  useEffect(() => {
+    const flush = () => saveVehicleState(stateRef.current)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      flush()
+    }
   }, [])
 
   return {
@@ -95,5 +123,6 @@ export function useVehicle() {
     toggleArm,
     pressKey,
     releaseKey,
+    reset,
   }
 }

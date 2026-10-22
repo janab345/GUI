@@ -7,7 +7,7 @@ import { useVehicle } from './sim/useVehicle'
 import { tiltDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
 
 function App() {
-  const { state, toggleArm, pressKey, releaseKey } = useVehicle()
+  const { state, toggleArm, pressKey, releaseKey, reset } = useVehicle()
   const thrust = thrustOf(state)
   const phase = PHASES[state.phaseIndex]
 
@@ -40,6 +40,7 @@ function App() {
             onToggleArm={toggleArm}
             onPressKey={pressKey}
             onReleaseKey={releaseKey}
+            onReset={reset}
           />
           <HealthStatus
             altitude={state.position[1]}

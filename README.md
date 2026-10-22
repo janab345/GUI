@@ -39,6 +39,8 @@ five phases of **3:00** each, starting at **Braking, 15 km, 3:00**.
 - Corner HUD: phase, phase clock, altitude, horizontal/vertical speed, thrust, tilt
 - Raw-state panel with the same message shape intended for the future backend
 - Health/status telemetry derived from the shared state (no panel-side simulation)
+- Vehicle state persisted to `localStorage` and restored on refresh (the mission clock
+  pauses while the page is closed); **RESET MISSION** starts a clean run
 
 ## Architecture
 

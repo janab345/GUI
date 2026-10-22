@@ -10,6 +10,7 @@ interface SpacecraftControlProps {
   onToggleArm: () => void
   onPressKey: (key: HoldKey) => void
   onReleaseKey: (key: HoldKey) => void
+  onReset: () => void
 }
 
 export default function SpacecraftControl({
@@ -19,6 +20,7 @@ export default function SpacecraftControl({
   onToggleArm,
   onPressKey,
   onReleaseKey,
+  onReset,
 }: SpacecraftControlProps) {
   const holdProps = (key: HoldKey) => ({
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
@@ -75,11 +77,9 @@ export default function SpacecraftControl({
       </div>
 
       <div className="control-section">
-        <h4>Mode</h4>
-        <p className="control-note">
-          Day 1 visualization: no gravity, no translation. Tilt redirects the thrust vector;
-          attitude is a quaternion.
-        </p>
+        <button className="reset-btn" onClick={onReset}>
+          RESET MISSION
+        </button>
       </div>
     </div>
   )
