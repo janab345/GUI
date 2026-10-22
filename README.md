@@ -34,11 +34,17 @@ On-screen hold buttons mirror the arrow keys. The phase clock runs on its own:
 **Hover / Touchdown Prep** (750–870 s, 1 engine + 4 RCS) →
 **Soft Touchdown** (870–900 s, 1 engine + 2 RCS), starting at **15 km, T-3:20**.
 
+**Sim Speed** (directly under the mission profile) selects `1x / 2x / 5x / 10x`.
+It is a full time warp: the phase clock, throttle ramp, attitude rate, and fuel
+burn all advance at the chosen multiple of real time. The selection is saved
+with the rest of the vehicle state.
+
 ## What is implemented
 
 - Quaternion attitude state (no Euler angles in the model), rendered directly by Three.js
 - Keyboard flight: throttle ramp, RCS pitch, engine arm/safe
 - Five-phase mission clock with automatic advance, per-phase engine and RCS counts
+- Runtime sim-speed control (1x–10x) shared by clock, controls, and fuel model
 - Corner HUD: phase, phase clock, altitude, horizontal/vertical speed, thrust, tilt
 - Raw-state panel with the same message shape intended for the future backend
 - Health/status telemetry derived from the shared state (no panel-side simulation)

@@ -46,6 +46,13 @@ export function useVehicle() {
     commit(createInitialState())
   }, [commit])
 
+  const setTimeScale = useCallback(
+    (timeScale: number) => {
+      commit({ ...stateRef.current, timeScale })
+    },
+    [commit],
+  )
+
   useEffect(() => {
     const heldKeys = keys.current
     const onKeyDown = (event: KeyboardEvent) => {
@@ -124,5 +131,6 @@ export function useVehicle() {
     pressKey,
     releaseKey,
     reset,
+    setTimeScale,
   }
 }

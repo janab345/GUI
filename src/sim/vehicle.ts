@@ -1,22 +1,6 @@
 import { Quaternion, Vector3 } from 'three'
 
-/**
- * Shared vehicle state for the PDI console.
- *
- * Day 1 ("visualization mode"): no gravity, no translation. Throttle and RCS
- * change the vehicle state only. This object is the shape the future Python
- * plant will send over the socket:
- *
- *   position, velocity, quaternion, throttle, RCS flags, phase, target
- */
 
-/**
- * Phase timings, engine counts, and RCS counts from
- * `nt/PDI Realization.md` — "Accurate phase timing and constraints".
- *
- * The note leaves the last two phases open-ended; the trainer gives them
- * 120 s and 30 s so the full run is 15:00.
- */
 export interface PhaseSpec {
   name: string
   start: number
@@ -40,7 +24,11 @@ export function phaseDuration(index: number): number {
 
 export const START_ALTITUDE_M = 15_000
 export const START_HORIZONTAL_SPEED = 200
-const FUEL_BURN_RATE = 1.00// percent per second at full throttle
+const FUEL_BURN_RATE = 0.50// percent per second at full throttle
+
+/** Sim-time multipliers the trainer can select. 1x is real time. */
+export const TIME_SCALES = [1, 2, 5, 10] as const
+export type TimeScale = (typeof TIME_SCALES)[number]
 
 const THROTTLE_RATE = 1 // full travel in one second while held
 const RCS_RATE = Math.PI / 9 // 20 deg/s
@@ -64,6 +52,7 @@ export interface VehicleState {
   quaternion: Quat
   throttle: number
   throttleKeys: ThrottleFlags
+  timeScale: number
   engineArmed: boolean
   rcs: RcsFlags
   phaseIndex: number
@@ -87,6 +76,7 @@ export function createInitialState(): VehicleState {
     quaternion: [0, 0, 0, 1],
     throttle: 0,
     throttleKeys: { up: false, down: false },
+    timeScale: 1,
     engineArmed: true,
     rcs: { left: false, right: false },
     phaseIndex: 0,
@@ -101,8 +91,12 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 /** Advance the plant by dt seconds. Pure function, ready to move behind SimAdapter. */
 export function stepState(state: VehicleState, dt: number, controls: Controls): VehicleState {
+  // Time warp: everything in the plant (clock, throttle ramp, attitude, fuel)
+  // advances at the selected multiple of real time.
+  const simDt = dt * state.timeScale
+
   const throttleDelta =
-    (Number(controls.throttleUp) - Number(controls.throttleDown)) * THROTTLE_RATE * dt
+    (Number(controls.throttleUp) - Number(controls.throttleDown)) * THROTTLE_RATE * simDt
   const throttle = clamp(state.throttle + throttleDelta, 0, 1)
 
   // Pitch about the screen-normal axis. On a lander, tilting points the engine
@@ -111,12 +105,12 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
   const pitchRate = (Number(controls.rcsLeft) - Number(controls.rcsRight)) * RCS_RATE
   let quaternion = state.quaternion
   if (pitchRate !== 0) {
-    const bodyRate = new Quaternion().setFromAxisAngle(Z_AXIS, pitchRate * dt)
+    const bodyRate = new Quaternion().setFromAxisAngle(Z_AXIS, pitchRate * simDt)
     const next = new Quaternion(...state.quaternion).multiply(bodyRate).normalize()
     quaternion = [next.x, next.y, next.z, next.w]
   }
 
-  let phaseRemaining = state.phaseRemaining - dt
+  let phaseRemaining = state.phaseRemaining - simDt
   let phaseIndex = state.phaseIndex
   if (phaseRemaining <= 0) {
     if (phaseIndex < PHASES.length - 1) {
@@ -128,7 +122,7 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
   }
 
   const thrust = state.engineArmed && state.fuel > 0 ? throttle : 0
-  const fuel = Math.max(0, state.fuel - thrust * FUEL_BURN_RATE * dt)
+  const fuel = Math.max(0, state.fuel - thrust * FUEL_BURN_RATE * simDt)
 
   return {
     ...state,

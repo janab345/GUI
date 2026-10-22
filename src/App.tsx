@@ -3,11 +3,12 @@ import HealthStatus from './components/HealthStatus'
 import MissionProfile from './components/MissionProfile'
 import Scene3D from './components/Scene3D'
 import SpacecraftControl from './components/SpacecraftControl'
+import SpeedControl from './components/SpeedControl'
 import { useVehicle } from './sim/useVehicle'
 import { tiltDeg, horizontalSpeed, PHASES, thrustOf } from './sim/vehicle'
 
 function App() {
-  const { state, toggleArm, pressKey, releaseKey, reset } = useVehicle()
+  const { state, toggleArm, pressKey, releaseKey, reset, setTimeScale } = useVehicle()
   const thrust = thrustOf(state)
   const phaseSpec = PHASES[state.phaseIndex]
   const phase = phaseSpec.name
@@ -37,11 +38,14 @@ function App() {
       <main className="app-main">
         <div className="scene-container">
           <Scene3D quaternion={state.quaternion} thrust={thrust} rcs={state.rcs} />
-          <MissionProfile
-            currentPhase={state.phaseIndex}
-            phaseRemaining={state.phaseRemaining}
-            phases={PHASES}
-          />
+          <div className="left-overlay">
+            <MissionProfile
+              currentPhase={state.phaseIndex}
+              phaseRemaining={state.phaseRemaining}
+              phases={PHASES}
+            />
+            <SpeedControl timeScale={state.timeScale} onChange={setTimeScale} />
+          </div>
           <Hud state={state} thrust={thrust} tilt={tiltDeg(state.quaternion)} />
           <SpacecraftControl
             throttle={state.throttle}

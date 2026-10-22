@@ -118,17 +118,58 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.mission-profile {
+.left-overlay {
   position: absolute;
   top: 50%;
   left: 16px;
   z-index: 1;
   width: min(280px, calc(100% - 32px));
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mission-profile {
   padding: 0;
   background: transparent;
   border: none;
-  transform: translateY(-50%);
   pointer-events: none;
+}
+
+.speed-control {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.speed-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.speed-btn {
+  padding: 6px 4px;
+  border: 1px solid var(--border-warm);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.speed-btn:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-h);
+}
+
+.speed-btn.active {
+  background: rgba(104, 154, 106, 0.25);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .spacecraft-control,

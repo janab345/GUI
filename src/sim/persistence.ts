@@ -2,6 +2,7 @@ import {
   createInitialState,
   phaseDuration,
   PHASES,
+  TIME_SCALES,
   type Quat,
   type VehicleState,
 } from './vehicle'
@@ -10,6 +11,9 @@ const STORAGE_KEY = 'llv-pdi.vehicle.v1'
 
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
+
+const asTimeScale = (value: unknown): number | null =>
+  TIME_SCALES.includes(value as (typeof TIME_SCALES)[number]) ? (value as number) : null
 
 const asVector = (value: unknown, length: number): number[] | null =>
   Array.isArray(value) && value.length === length && value.every(isNumber)
@@ -49,6 +53,7 @@ export function loadVehicleState(): VehicleState {
       target: target ? [target[0], target[1], target[2]] : base.target,
       quaternion: quaternion ? (quaternion as Quat) : base.quaternion,
       throttle: isNumber(stored.throttle) ? clamp(stored.throttle, 0, 1) : base.throttle,
+      timeScale: asTimeScale(stored.timeScale) ?? base.timeScale,
       engineArmed:
         typeof stored.engineArmed === 'boolean' ? stored.engineArmed : base.engineArmed,
       rcs: {
