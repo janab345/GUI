@@ -15,6 +15,22 @@ tags:
 > Companion notes: [DECISIONS.md](./DECISIONS.md) (what we chose and why) and
 > [../docs/DESIGN.md](../docs/DESIGN.md) (one-page system design).
 
+## How to study this note
+
+Four sittings, roughly 3 hours 45 minutes total. Read a section, do the short
+action, and answer the check before moving on. Do not read the whole note in one
+pass.
+
+| Session | Sections | Time |
+|---|---|---|
+| 1 — Orientation | 0–2 | 40 min |
+| 2 — Physics and attitude | 3–5 | 80 min |
+| 3 — Architecture | 6–8 | 70 min |
+| 4 — Execution and meta | 9–13 | 35 min |
+
+Per section: §0 5 · §1 10 · §2 25 · §3 35 · §4 30 · §5 15 · §6 25 · §7 30 ·
+§8 15 · §9 10 · §10 10 · §11 10 · §12 3 · §13 2 minutes.
+
 ---
 
 ## 0. The honest starting point
@@ -39,10 +55,11 @@ critical path for this sprint.
 ## 1. The whole app in one paragraph
 
 > You press arrow keys. Those keys become two commands: `throttle` and `rcs`
-> (turn l'eft / right). A pure function `stepState()` takes the current vehicle
-> state plus those commands, advances time by one small step, applies gravity
-> and thrust, and returns a new state. The 3D scene and the HUD both simply
-> **draw** that state. Nothing else simulates.
+> (tilt left / right). A pure function `stepState()` takes the current vehicle
+> state plus those commands, advances time by one small step, applies the
+> current physics rules (today: throttle, tilt, fuel; next: gravity and thrust),
+> and returns a new state. The 3D scene and the HUD both simply **draw** that
+> state. Nothing else simulates.
 
 Every file in the repo is one of four things: **input**, **math**, **state**, or
 **drawing**. If you can point at which file does which, you understand the
@@ -88,7 +105,9 @@ constant gravity near the surface.** All braking is propulsive.
 4. **Mass flow.** `dm/dt = -F / (Isp * g0)`, with `g0 = 9.81 m/s²` and `Isp`
    around 300 s for a lunar descent engine. Burning fuel makes the ship lighter,
    so the same throttle later produces more acceleration.
-5. **TWR.** `TWR = F / (m * 1.62)`. If TWR ≤ 1, you are falling and cannot stop.
+5. **TWR.** `TWR = F / (m * 1.62)`. Below 1, gravity wins and the ship
+   accelerates downward. At 1, it can hover. Only above 1 can it arrest a
+   descent.
 
 **Why attitude is the steering.** With no atmosphere and a fixed engine, thrust
 points where the nose points. Rotating the ship redirects thrust. Killing

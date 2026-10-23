@@ -1,7 +1,22 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Grid, OrbitControls, Stars, useGLTF } from '@react-three/drei'
-import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react'
-import { BufferGeometry, Group, Matrix3, Mesh, Quaternion, Vector3 } from 'three'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  Component,
+  Suspense,
+  type ReactNode,
+} from 'react'
+import {
+  BufferGeometry,
+  ConeGeometry,
+  Group,
+  Matrix3,
+  Mesh,
+  Quaternion,
+  Vector3,
+} from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Quat, RcsFlags } from '../sim/vehicle'
 
@@ -18,10 +33,82 @@ const MODEL_URL =
 /** Height of the rendered lander in scene units. */
 const MODEL_HEIGHT = 2.6
 
+/**
+ * Bounds of the CAD export (OBJ units, Y up). `GltfModel` fits the mesh to
+ * MODEL_HEIGHT using these, and the nozzle positions below use the same fit.
+ */
+const MODEL_MIN = new Vector3(-1700.41, -1150.0, -1700.63)
+const MODEL_MAX = new Vector3(1700.63, 3710.7, 1700.41)
+const MODEL_SIZE = MODEL_MAX.clone().sub(MODEL_MIN)
+const MODEL_CENTER = MODEL_MAX.clone().add(MODEL_MIN).multiplyScalar(0.5)
+const MODEL_SCALE = MODEL_HEIGHT / MODEL_SIZE.y
+const MODEL_OFFSET = new Vector3(
+  -MODEL_CENTER.x * MODEL_SCALE,
+  -MODEL_HEIGHT / 2 - MODEL_MIN.y * MODEL_SCALE,
+  -MODEL_CENTER.z * MODEL_SCALE,
+)
+
+/** CAD coordinates -> lander-local scene coordinates. */
+function toScene(x: number, y: number, z: number): [number, number, number] {
+  return [
+    x * MODEL_SCALE + MODEL_OFFSET.x,
+    y * MODEL_SCALE + MODEL_OFFSET.y,
+    z * MODEL_SCALE + MODEL_OFFSET.z,
+  ]
+}
+
+/**
+ * The five engine bells in the CAD mesh: one centre bell plus four in a cross.
+ * Measured from the bell-exit rims (r ≈ 217 CAD units ≈ 0.116 scene units).
+ */
+type EngineId = 'C' | 'PX' | 'MX' | 'PZ' | 'MZ'
+
+interface EngineBell {
+  id: EngineId
+  position: [number, number, number]
+}
+
+const ENGINE_BELLS: readonly EngineBell[] = [
+  { id: 'C', position: toScene(12.1, -1077.0, 4.3) },
+  { id: 'PX', position: toScene(845.0, -1072.4, 8.8) },
+  { id: 'MX', position: toScene(-832.4, -1072.4, 14.0) },
+  { id: 'PZ', position: toScene(18.6, -1072.4, 859.1) },
+  { id: 'MZ', position: toScene(21.4, -1072.4, -857.2) },
+]
+
+/**
+ * Which bells fire for the engine count of the current phase (see PHASES in
+ * sim/vehicle.ts). Shutdowns stay symmetric: the centre bell drops out for the
+ * four-outer-engine phase, and only the centre runs for the final hover.
+ */
+const ALL_BELLS: ReadonlySet<EngineId> = new Set(ENGINE_BELLS.map((b) => b.id))
+const OUTER_BELLS: ReadonlySet<EngineId> = new Set(['PX', 'MX', 'PZ', 'MZ'])
+const THREE_BELLS: ReadonlySet<EngineId> = new Set(['C', 'PX', 'MX'])
+const CENTRE_BELL: ReadonlySet<EngineId> = new Set(['C'])
+
+function enginesFor(count: number): ReadonlySet<EngineId> {
+  if (count >= 5) return ALL_BELLS
+  if (count === 4) return OUTER_BELLS
+  if (count === 3) return THREE_BELLS
+  return CENTRE_BELL
+}
+
+/** Unit plume: base at the origin, apex one unit below. */
+const FLAME_GEOMETRY = (() => {
+  const geometry = new ConeGeometry(1, 1, 20, 1, true)
+  geometry.rotateX(Math.PI)
+  geometry.translate(0, -0.5, 0)
+  return geometry
+})()
+
+/** Slight per-bell trim so the five plumes do not look stamped out. */
+const FLAME_TRIM = [1, 0.94, 0.97, 0.92, 0.95]
+
 interface LanderProps {
   quaternion: Quat
   thrust: number
   rcs: RcsFlags
+  engines: number
 }
 
 /** Shows the placeholder if the GLTF cannot be fetched (e.g. missing .bin). */
@@ -177,21 +264,44 @@ function PlaceholderModel() {
   )
 }
 
-function Lander({ quaternion, thrust, rcs }: LanderProps) {
+function Lander({ quaternion, thrust, rcs, engines }: LanderProps) {
   const group = useRef<Group>(null)
-  const flame = useRef<Mesh>(null)
+  const flames = useRef<(Group | null)[]>([])
+  const power = useRef<number[]>(ENGINE_BELLS.map(() => 0))
+  const lit = useMemo(() => enginesFor(engines), [engines])
+  const litRef = useRef(lit)
   const target = useMemo(() => new Quaternion(...quaternion), [quaternion])
 
-  useFrame((_, delta) => {
+  useEffect(() => {
+    litRef.current = lit
+  }, [lit])
+
+  useFrame(({ clock }, delta) => {
     if (group.current) {
       // Render-loop smoothing: state arrives at ~30 Hz, the cone still turns smoothly.
       group.current.quaternion.slerp(target, 1 - Math.exp(-14 * delta))
     }
-    if (flame.current) {
-      flame.current.visible = thrust > 0.01
-      const spread = 0.65 + 0.45 * thrust
-      flame.current.scale.set(spread, 0.35 + 1.15 * thrust, spread)
-    }
+
+    const t = clock.elapsedTime
+    ENGINE_BELLS.forEach((bell, i) => {
+      const plume = flames.current[i]
+      if (!plume) return
+
+      // Fade each bell in/out so shutdowns read as a spool-down, not a pop.
+      const wanted = thrust > 0.01 && litRef.current.has(bell.id) ? 1 : 0
+      const level = power.current[i] + (wanted - power.current[i]) * (1 - Math.exp(-9 * delta))
+      power.current[i] = level
+
+      plume.visible = level > 0.02
+      if (!plume.visible) return
+
+      const flicker =
+        1 + 0.05 * Math.sin(t * 47 + i * 2.1) + 0.03 * Math.sin(t * 29 + i * 1.3)
+      const trim = FLAME_TRIM[i]
+      const radius = (0.095 + 0.025 * thrust) * level * flicker * trim
+      const length = (0.26 + 0.95 * thrust) * level * flicker * trim
+      plume.scale.set(radius, length, radius)
+    })
   })
 
   return (
@@ -202,10 +312,45 @@ function Lander({ quaternion, thrust, rcs }: LanderProps) {
         </Suspense>
       </ModelBoundary>
 
-      <mesh ref={flame} position={[0, -1.7, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.3, 0.8, 16]} />
-        <meshBasicMaterial color="#ff6600" transparent opacity={0.85} />
-      </mesh>
+      {/* One plume per engine bell: a dim orange envelope and a hot core. */}
+      {ENGINE_BELLS.map((bell, i) => (
+        <group
+          key={bell.id}
+          position={bell.position}
+          ref={(node) => {
+            flames.current[i] = node
+          }}
+          visible={false}
+        >
+          <mesh geometry={FLAME_GEOMETRY}>
+            <meshBasicMaterial
+              color="#ff5a00"
+              transparent
+              opacity={0.55}
+              depthWrite={false}
+              side={2}
+            />
+          </mesh>
+          <mesh geometry={FLAME_GEOMETRY} scale={[0.5, 0.8, 0.5]}>
+            <meshBasicMaterial
+              color="#ffcf8a"
+              transparent
+              opacity={0.85}
+              depthWrite={false}
+              side={2}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Engine-bay glow on the underside of the lander. */}
+      <pointLight
+        position={[0, -1.5, 0]}
+        color="#ff7a1a"
+        intensity={thrust * 2.5}
+        distance={3.5}
+        decay={2}
+      />
 
       {/* Two RCS jets: left fires on ArrowLeft, right on ArrowRight. */}
       {rcs.left && (
@@ -228,18 +373,19 @@ interface Scene3DProps {
   quaternion: Quat
   thrust: number
   rcs: RcsFlags
+  engines: number
 }
 
-export default function Scene3D({ quaternion, thrust, rcs }: Scene3DProps) {
+export default function Scene3D({ quaternion, thrust, rcs, engines }: Scene3DProps) {
   return (
-    <Canvas camera={{ position: [4, 3, 4], fov: 50 }}>
-      <color attach="background" args={['#171717']} />
+    <Canvas camera={{ position: [5.26, 2.7, 2.45], fov: 50 }}>
+      <color attach="background" args={['#000000']} />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 8, 5]} intensity={2.2} />
       <pointLight position={[-5, 5, -5]} intensity={0.5} color="#4488ff" />
       <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
       <Grid args={[20, 20]} position={[0, -2, 0]} cellColor="#333333" sectionColor="#555555" />
-      <Lander quaternion={quaternion} thrust={thrust} rcs={rcs} />
+      <Lander quaternion={quaternion} thrust={thrust} rcs={rcs} engines={engines} />
       <OrbitControls enableDamping dampingFactor={0.05} />
     </Canvas>
   )

@@ -1,7 +1,7 @@
 :root {
-  --bg: #0a0e14;
-  --panel-bg: #111827;
-  --chrome-bg: #1E2031;
+  --bg: #000000;
+  --panel-bg: transparent;
+  --chrome-bg: transparent;
   --border: #1f2937;
   --border-warm: #908172;
   --text: #e8d9af;

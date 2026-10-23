@@ -37,7 +37,13 @@ function App() {
       </header>
       <main className="app-main">
         <div className="scene-container">
-          <Scene3D quaternion={state.quaternion} thrust={thrust} rcs={state.rcs} />
+          <Scene3D
+            quaternion={state.quaternion}
+            thrust={thrust}
+            rcs={state.rcs}
+            engines={phaseSpec.engines}
+          />
+
           <div className="left-overlay">
             <MissionProfile
               currentPhase={state.phaseIndex}
