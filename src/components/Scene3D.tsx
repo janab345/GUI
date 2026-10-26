@@ -104,6 +104,31 @@ const FLAME_GEOMETRY = (() => {
 /** Slight per-bell trim so the five plumes do not look stamped out. */
 const FLAME_TRIM = [1, 0.94, 0.97, 0.92, 0.95]
 
+/**
+ * Lateral RCS nozzles: the two thruster pods closest to each side of the upper
+ * outrigger (the outer pair of the corner pods). Left/right arrows pitch the
+ * vehicle, so only these two pairs are used.
+ */
+interface RcsNozzle {
+  id: string
+  side: 'left' | 'right'
+  position: [number, number, number]
+}
+
+const RCS_NOZZLES: readonly RcsNozzle[] = [
+  { id: 'R1', side: 'right', position: toScene(916.0, 2214.0, 671.0) },
+  { id: 'R2', side: 'right', position: toScene(916.0, 2213.0, -700.0) },
+  { id: 'L1', side: 'left', position: toScene(-916.0, 2213.0, 672.0) },
+  { id: 'L2', side: 'left', position: toScene(-916.0, 2214.0, -700.0) },
+]
+
+/** Unit RCS jet: base at the origin, apex one unit along +Y (rotated per side). */
+const RCS_GEOMETRY = (() => {
+  const geometry = new ConeGeometry(1, 1, 12, 1, true)
+  geometry.translate(0, 0.5, 0)
+  return geometry
+})()
+
 interface LanderProps {
   quaternion: Quat
   thrust: number
@@ -268,6 +293,8 @@ function Lander({ quaternion, thrust, rcs, engines }: LanderProps) {
   const group = useRef<Group>(null)
   const flames = useRef<(Group | null)[]>([])
   const power = useRef<number[]>(ENGINE_BELLS.map(() => 0))
+  const rcsPlumes = useRef<(Group | null)[]>([])
+  const rcsPower = useRef<{ left: number; right: number }>({ left: 0, right: 0 })
   const lit = useMemo(() => enginesFor(engines), [engines])
   const litRef = useRef(lit)
   const target = useMemo(() => new Quaternion(...quaternion), [quaternion])
@@ -300,6 +327,25 @@ function Lander({ quaternion, thrust, rcs, engines }: LanderProps) {
       const trim = FLAME_TRIM[i]
       const radius = (0.095 + 0.025 * thrust) * level * flicker * trim
       const length = (0.26 + 0.95 * thrust) * level * flicker * trim
+      plume.scale.set(radius, length, radius)
+    })
+
+    // RCS spool the same way; each side has its own pair of lateral nozzles.
+    RCS_NOZZLES.forEach((nozzle, i) => {
+      const plume = rcsPlumes.current[i]
+      if (!plume) return
+
+      const wanted = (nozzle.side === 'right' ? rcs.right : rcs.left) ? 1 : 0
+      const current = rcsPower.current[nozzle.side]
+      const level = current + (wanted - current) * (1 - Math.exp(-16 * delta))
+      rcsPower.current[nozzle.side] = level
+
+      plume.visible = level > 0.03
+      if (!plume.visible) return
+
+      const flicker = 1 + 0.08 * Math.sin(t * 61 + i * 1.7)
+      const radius = (0.05 + 0.02 * level) * flicker
+      const length = (0.26 + 0.16 * level) * level * flicker
       plume.scale.set(radius, length, radius)
     })
   })
@@ -352,19 +398,37 @@ function Lander({ quaternion, thrust, rcs, engines }: LanderProps) {
         decay={2}
       />
 
-      {/* Two RCS jets: left fires on ArrowLeft, right on ArrowRight. */}
-      {rcs.left && (
-        <mesh position={[-0.8, 0.3, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <coneGeometry args={[0.1, 0.4, 10]} />
-          <meshBasicMaterial color="#66aaff" transparent opacity={0.8} />
-        </mesh>
-      )}
-      {rcs.right && (
-        <mesh position={[0.8, 0.3, 0]} rotation={[0, 0, -Math.PI / 2]}>
-          <coneGeometry args={[0.1, 0.4, 10]} />
-          <meshBasicMaterial color="#66aaff" transparent opacity={0.8} />
-        </mesh>
-      )}
+      {/* Lateral RCS: the two thruster pods on each side of the upper outrigger. */}
+      {RCS_NOZZLES.map((nozzle, i) => (
+        <group
+          key={nozzle.id}
+          position={nozzle.position}
+          rotation={[0, 0, nozzle.side === 'right' ? -Math.PI / 2 : Math.PI / 2]}
+          ref={(node) => {
+            rcsPlumes.current[i] = node
+          }}
+          visible={false}
+        >
+          <mesh geometry={RCS_GEOMETRY}>
+            <meshBasicMaterial
+              color="#5aa6ff"
+              transparent
+              opacity={0.5}
+              depthWrite={false}
+              side={2}
+            />
+          </mesh>
+          <mesh geometry={RCS_GEOMETRY} scale={[0.45, 0.72, 0.45]}>
+            <meshBasicMaterial
+              color="#dceeff"
+              transparent
+              opacity={0.85}
+              depthWrite={false}
+              side={2}
+            />
+          </mesh>
+        </group>
+      ))}
     </group>
   )
 }
