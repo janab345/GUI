@@ -1,4 +1,4 @@
-import type { NavData, SensorStatus } from '../sim/nav'
+import type { NavData } from '../sim/nav'
 
 interface NavigationPanelProps {
   nav: NavData
@@ -17,22 +17,22 @@ function bearing(value: number | null): string {
   return `${Math.round(value).toString().padStart(3, '0')}°`
 }
 
-function statusLabel(status: SensorStatus): string {
-  switch (status) {
-    case 'ok':
-      return 'OK'
-    case 'degraded':
-      return 'DEGRADED'
-    case 'stale':
-      return 'STALE'
-    case 'fault':
-      return 'FAULT'
-    case 'sim':
-      return 'SIM'
-    case 'notFitted':
-      return '—'
-  }
-}
+// function statusLabel(status: SensorStatus): string {
+//   switch (status) {
+//     case 'ok':
+//       return 'OK'
+//     case 'degraded':
+//       return 'DEGRADED'
+//     case 'stale':
+//       return 'STALE'
+//     case 'fault':
+//       return 'FAULT'
+//     case 'sim':
+//       return 'SIM'
+//     case 'notFitted':
+//       return '—'
+//   }
+// }
 
 export default function NavigationPanel({ nav }: NavigationPanelProps) {
   return (
@@ -78,7 +78,7 @@ export default function NavigationPanel({ nav }: NavigationPanelProps) {
         </div>
       </div>
 
-      <div className="nav-section-label">SENSOR STATUS</div>
+      {/*<div className="nav-section-label">SENSOR STATUS</div>
       <div className="sensor-grid">
         {nav.sensors.map((sensor) => (
           <div
@@ -92,7 +92,7 @@ export default function NavigationPanel({ nav }: NavigationPanelProps) {
         ))}
       </div>
 
-      <p className="nav-note">SIMULATED STATE · SENSORS NOT MODELLED</p>
+      <p className="nav-note">SIMULATED STATE · SENSORS NOT MODELLED</p>*/}
     </div>
   )
 }
