@@ -14,6 +14,8 @@ tags:
 >
 > Status legend:
 > - **LOCKED** — matches the current code; do not change without updating this file.
+> - **IMPLEMENTED** — a former proposal now in the local TS code, possibly not
+>   yet in the wire contract.
 > - **PROPOSED** — recommendation, not yet implemented. Needs review before coding.
 > - **OPEN** — needs an owner (you / GNC lead / CAD) to decide.
 >
@@ -48,9 +50,11 @@ until the dynamics are correct.
 props down. No view keeps its own physics or a divergent copy.
 
 ```
-position, velocity, quaternion, throttle, engineArmed, rcs,
-phaseIndex, phaseRemaining, fuel, target, rawVisible
+position, velocity, quaternion, throttle, throttleKeys, timeScale,
+engineArmed, rcs, phaseIndex, phaseRemaining, fuel, target
 ```
+
+Panel visibility is UI state in `App.tsx`, **not** part of `VehicleState`.
 
 **Why:** both panels must render the same state. This is the future
 Python/WebSocket seam.
@@ -64,9 +68,11 @@ Python/WebSocket seam.
 - Altitude is `position[1]` (Y axis), in meters.
 - The horizontal plane is `(x, z)`.
 - Initial position: `[0, 15000, 0]` (15 km directly above the target).
-- Initial velocity: `[0, 0, 200]` (200 m/s toward `+Z`, i.e. toward the nose).
+- Initial velocity: `[200, 0, 0]` (200 m/s toward `+X`, the axis the lateral RCS
+  can brake; the nose boom is `+Z`).
 - Target: `[0, 0, 0]` — the pad, directly below the start point.
-- Gravity is **not** applied; `y` never changes.
+- Gravity `[0, -1.62, 0] m/s²` is applied and `position` is integrated. This is
+  still Three.js Y-up, not the target ENU wire frame (P-001).
 
 **Why:** Three.js is Y-up by default, so this is the path of least resistance for
 the renderer. It is fine for the MVP **only if it is explicit**.
@@ -127,31 +133,39 @@ same numbers rearranged. Convert at the boundary, once, with a test.
 | RCS rate | internal | radians |
 | Heading | — | replaced by tilt (see below) |
 | Tilt | `number` | degrees, signed: + right, − left |
-| Mass | **absent** | — |
-| Thrust | **normalized** | 0–1, not newtons |
+| Mass | derived from `fuel` | kg (`DRY_MASS_KG` + propellant) |
+| Thrust | derived from `throttle` | N (`throttle * 45 000`) |
+| Gravity | constant | `1.62 m/s²` |
 
-**Why:** nothing in the app currently needs real mass/thrust/ISP.
+**Why:** mass and thrust are no longer cosmetic. `massKg()` and
+`thrustNewtons()` keep the conversion in one place; fuel remains a percentage
+for display.
 
-**Consequence:** "fuel percent" and "throttle fraction" cannot produce real
-dynamics yet. See P-004 before adding translation.
+**Consequence:** acceleration depends on fuel state. At 100% fuel and full
+throttle, TWR ≈ 1.85; as propellant burns, TWR rises. P-004 is implemented in
+the TypeScript plant (not yet on the wire contract).
 
 ---
 
-### D-006 — Time: variable `dt` from rAF, no sim clock
+### D-006 — Time: fixed 10 ms step, no sim clock `t_s`
 
-**Status:** LOCKED, **known limitation**
+**Status:** IMPLEMENTED, still no mission clock
 
-- `useVehicle.ts` computes `dt = (now - last) / 1000`, clamped to **0.1 s**.
-- Physics steps once per animation frame (monitor-dependent).
+- `useVehicle.ts` accumulates frame time and calls `stepState()` in fixed
+  `FIXED_STEP_S = 0.01` increments.
+- Frame time is clamped to **0.1 s**; at most 100 steps are run per frame to
+  avoid a catch-up spiral after a tab stall.
 - React state is published at most every **33 ms** (~30 Hz).
-- `phaseRemaining` decreases by `dt`, so it is wall-clock, not mission time.
-- There is no `t_s` in `VehicleState`, no pause, no time scale, no replay.
+- `timeScale` (1×/2×/5×/10×) is applied **inside** `stepState`; the accumulator
+  itself stays in real time.
+- Physics is deterministic for the same command sequence and step count.
+- There is still no `t_s` in `VehicleState`, no pause, and no replay log.
 
-**Why:** adequate for a Day-1 visualization.
+**Why:** deterministic steps make tests and later replay possible without
+changing the plant API.
 
-**Consequence:** the same key sequence produces different trajectories on a
-144 Hz and a 60 Hz display. Replay and regression tests are impossible until
-this changes. See P-002.
+**Consequence:** `phaseRemaining` is still advanced by the plant, but there is
+no absolute mission time to tag snapshots. See P-002.
 
 ---
 
@@ -165,8 +179,9 @@ stepState(state: VehicleState, dt: number, controls: Controls): VehicleState
 
 - Returns a new object; never mutates the input.
 - No React, no DOM, no `performance.now()` inside.
-- Behavior today: throttle ramp, yaw integration, fuel burn, phase clock.
-- **No gravity, no translation, no mass, no thrust vector.**
+- Behavior today: throttle ramp, tilt integration, mass/thrust/gravity,
+  translation, ISP-based fuel burn, phase clock, surface clamp.
+- Still missing: `t_s`, landed/crashed status, attitude-rate state.
 
 **Why:** this is the seam. It can be replaced by a Python function or a
 WebSocket adapter without touching the UI.
@@ -183,10 +198,11 @@ WebSocket adapter without touching the UI.
 | `ArrowDown` | throttle `-1.0 / s` |
 | `ArrowLeft` | tilt `−20°/s` (left RCS); body leans left |
 | `ArrowRight` | tilt `+20°/s` (right RCS); body leans right |
-| `Enter` | toggle raw-state JSON panel |
+| `Enter` | toggle the raw-state JSON overlay (screen B) |
+| Navigation | always visible below Spacecraft Control; not part of `VehicleState` |
 | On-screen hold buttons | inject the same key names into the same key set |
-| `R` reset | **not implemented** |
-| Pause / time scale | **not implemented** |
+| Reset | on-screen button; keyboard `R` **not implemented** |
+| Time scale | on-screen 1×/2×/5×/10×; pause **not implemented** |
 
 **Why:** keyboard and on-screen buttons must share one command path.
 
@@ -214,10 +230,13 @@ Apollo's real gates.
 
 **Status:** LOCKED
 
-- Fuel starts at 100 (%) and drains at `0.35 %/s` at full throttle.
+- Fuel starts at 100 (%) of `PROPELLANT_MASS_KG = 12 800 kg`.
+- At full throttle, propellant flow is `F / (Isp * g0)` ≈ **15.3 kg/s** with
+  `Isp = 300 s`, i.e. about **0.12 %/s** of the tank.
 - `thrustOf(state)` returns 0 if the engine is safe or fuel is empty.
 - Arming is a manual toggle; there is no auto-disarm at touchdown.
-- No mass coupling, no ISP, no propellant mass.
+- `massKg(fuel)` is coupled to thrust and acceleration; fuel remains a
+  display percentage.
 
 ---
 
@@ -235,7 +254,8 @@ Apollo's real gates.
   (heading)" indicator. Fix it when touching the file; it no longer matches
   `tiltDeg()`.
 - Camera: perspective, `[4, 3, 4]`, 50° FOV, `OrbitControls` with damping.
-- Grid and Stars are drei helpers; no terrain, no GLB.
+- Grid and Stars are drei helpers; no terrain. The lander loads
+  `public/cx3-pdi.glb`, with the primitive lander as a load-failure fallback.
 - HUD and panels are plain React DOM over the canvas, not Three.js sprites.
 
 **Why:** fastest path and easiest to defend in review.
@@ -294,9 +314,12 @@ Apollo's real gates.
 
 ### P-004 — Real mass, thrust, and propellant
 
-**Status:** PROPOSED
+**Status:** IMPLEMENTED in the TS plant; still absent from the wire contract
 
-- Add `mass_kg`, `thrust_n`, `isp_s`, `propellant_kg`.
+- `massKg()`, `thrustNewtons()`, `GRAVITY_MPS2`, `MAX_THRUST_N`, `ENGINE_ISP_S`
+  now drive acceleration and fuel burn in `vehicle.ts`.
+- Still to do: expose `mass_kg`, `thrust_n`, `isp_s`, `propellant_kg` in the
+  future `VehicleState` wire shape.
 - `thrust_n = throttle * max_thrust_n`.
 - `dm/dt = -thrust_n / (isp_s * 9.81)`.
 - Keep `fuel` as a **display-only** percentage derived from propellant.
@@ -411,6 +434,7 @@ Use Vitest. Tests run headless, no browser, no renderer.
 |---|---|---|
 | 2026-10-22 | Initial log created from as-built Day-1 code. | Trainee + AI |
 | 2026-10-22 | Attitude command changed from yaw about `+Y` to lateral tilt about `+Z`; HUD `HDG` → `TILT`; `headingDeg()` → `tiltDeg()`. Axis naming flagged in D-004 / P-005. | Trainee |
+| 2026-10-26 | Fixed 10 ms step, gravity/translation, mass/ISP fuel burn, `nav.ts`. Navigation is always visible below Spacecraft Control; Enter opens only the raw JSON. Panel visibility moved out of `VehicleState`. | Trainee + AI |
 
 ---
 

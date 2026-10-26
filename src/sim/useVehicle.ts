@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearVehicleState, loadVehicleState, saveVehicleState } from './persistence'
-import { createInitialState, stepState, type Controls, type VehicleState } from './vehicle'
+import {
+  createInitialState,
+  FIXED_STEP_S,
+  stepState,
+  type Controls,
+  type VehicleState,
+} from './vehicle'
 
 const RENDER_INTERVAL_MS = 33 // HUD ~30 Hz; the 3D scene smooths its own attitude
 const SAVE_INTERVAL_MS = 500
@@ -23,10 +29,6 @@ export function useVehicle() {
     stateRef.current = next
     setState(next)
   }, [])
-
-  const toggleRaw = useCallback(() => {
-    commit({ ...stateRef.current, rawVisible: !stateRef.current.rawVisible })
-  }, [commit])
 
   const toggleArm = useCallback(() => {
     commit({ ...stateRef.current, engineArmed: !stateRef.current.engineArmed })
@@ -56,11 +58,6 @@ export function useVehicle() {
   useEffect(() => {
     const heldKeys = keys.current
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        toggleRaw()
-        return
-      }
       if (event.key.startsWith('Arrow')) {
         event.preventDefault()
         heldKeys.add(event.key)
@@ -80,19 +77,31 @@ export function useVehicle() {
       window.removeEventListener('blur', onBlur)
       heldKeys.clear()
     }
-  }, [toggleRaw])
+  }, [])
 
   useEffect(() => {
     let frame = 0
     let last = performance.now()
     let lastRender = 0
     let lastSave = 0
+    let accumulator = 0
 
     const tick = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.1)
+      const frameDt = Math.min((now - last) / 1000, 0.1)
       last = now
+      accumulator += frameDt
 
-      const next = stepState(stateRef.current, dt, controlsFromKeys(keys.current))
+      // Fixed-step integration keeps the plant deterministic and testable.
+      // The cap prevents a long tab stall from freezing the UI in a catch-up loop.
+      let next = stateRef.current
+      let steps = 0
+      while (accumulator >= FIXED_STEP_S && steps < 100) {
+        next = stepState(next, FIXED_STEP_S, controlsFromKeys(keys.current))
+        accumulator -= FIXED_STEP_S
+        steps += 1
+      }
+      if (steps === 100) accumulator = 0
+
       stateRef.current = next
       if (now - lastRender >= RENDER_INTERVAL_MS) {
         lastRender = now
@@ -126,7 +135,6 @@ export function useVehicle() {
 
   return {
     state,
-    toggleRaw,
     toggleArm,
     pressKey,
     releaseKey,

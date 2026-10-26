@@ -24,7 +24,19 @@ export function phaseDuration(index: number): number {
 
 export const START_ALTITUDE_M = 15_000
 export const START_HORIZONTAL_SPEED = 200
-const FUEL_BURN_RATE = 0.50// percent per second at full throttle
+
+/** Discrete physics step. Rendering stays at display rate. */
+export const FIXED_STEP_S = 0.01
+
+/** Lunar surface gravity, m/s². */
+export const GRAVITY_MPS2 = 1.62
+
+/** Apollo-LM-like mass budget. Fuel is a percentage of propellant remaining. */
+export const DRY_MASS_KG = 2_200
+export const PROPELLANT_MASS_KG = 12_800
+export const MAX_THRUST_N = 45_000
+export const ENGINE_ISP_S = 300
+const STANDARD_GRAVITY = 9.80665
 
 /** Sim-time multipliers the trainer can select. 1x is real time. */
 export const TIME_SCALES = [1, 2, 5, 10] as const
@@ -59,7 +71,6 @@ export interface VehicleState {
   phaseRemaining: number
   fuel: number
   target: [number, number, number]
-  rawVisible: boolean
 }
 
 export interface Controls {
@@ -72,7 +83,9 @@ export interface Controls {
 export function createInitialState(): VehicleState {
   return {
     position: [0, START_ALTITUDE_M, 0],
-    velocity: [0, 0, START_HORIZONTAL_SPEED],
+    // Lateral RCS tilts about +Z, which produces thrust along ±X. Keep the
+    // initial horizontal velocity on the axis the pilot can actually brake.
+    velocity: [START_HORIZONTAL_SPEED, 0, 0],
     quaternion: [0, 0, 0, 1],
     throttle: 0,
     throttleKeys: { up: false, down: false },
@@ -83,11 +96,20 @@ export function createInitialState(): VehicleState {
     phaseRemaining: phaseDuration(0),
     fuel: 100,
     target: [0, 0, 0],
-    rawVisible: false,
   }
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+/** Current vehicle mass. Dry mass plus the propellant still on board. */
+export function massKg(fuelPercent: number): number {
+  return DRY_MASS_KG + (PROPELLANT_MASS_KG * clamp(fuelPercent, 0, 100)) / 100
+}
+
+/** Actual engine thrust in newtons after arming and fuel checks. */
+export function thrustNewtons(state: VehicleState): number {
+  return thrustOf(state) * MAX_THRUST_N
+}
 
 /** Advance the plant by dt seconds. Pure function, ready to move behind SimAdapter. */
 export function stepState(state: VehicleState, dt: number, controls: Controls): VehicleState {
@@ -99,9 +121,9 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
     (Number(controls.throttleUp) - Number(controls.throttleDown)) * THROTTLE_RATE * simDt
   const throttle = clamp(state.throttle + throttleDelta, 0, 1)
 
-  // Pitch about the screen-normal axis. On a lander, tilting points the engine
-  // off-vertical, which is what produces lateral motion. Yaw would not.
-  // Right key -> negative rotation about +Z -> nose leans right.
+  // Lateral tilt about the screen-normal axis. On a lander, leaning the body
+  // points the engine off-vertical, which is what produces lateral motion.
+  // Right key -> negative rotation about +Z -> body-up tips toward +X.
   const pitchRate = (Number(controls.rcsLeft) - Number(controls.rcsRight)) * RCS_RATE
   let quaternion = state.quaternion
   if (pitchRate !== 0) {
@@ -122,10 +144,45 @@ export function stepState(state: VehicleState, dt: number, controls: Controls): 
   }
 
   const thrust = state.engineArmed && state.fuel > 0 ? throttle : 0
-  const fuel = Math.max(0, state.fuel - thrust * FUEL_BURN_RATE * simDt)
+  const mass = massKg(state.fuel)
+
+  // Thrust acts along the body +Y axis; gravity always points along world -Y.
+  const acceleration = new Vector3(0, 1, 0)
+    .applyQuaternion(new Quaternion(...quaternion))
+    .multiplyScalar((thrust * MAX_THRUST_N) / mass)
+  acceleration.y -= GRAVITY_MPS2
+
+  const velocity: [number, number, number] = [
+    state.velocity[0] + acceleration.x * simDt,
+    state.velocity[1] + acceleration.y * simDt,
+    state.velocity[2] + acceleration.z * simDt,
+  ]
+  const position: [number, number, number] = [
+    state.position[0] + velocity[0] * simDt,
+    state.position[1] + velocity[1] * simDt,
+    state.position[2] + velocity[2] * simDt,
+  ]
+
+  // Stop at the surface until the landed/crashed rules exist. Without this the
+  // vehicle would keep integrating below the ground forever.
+  if (position[1] <= 0) {
+    position[1] = 0
+    velocity[0] = 0
+    velocity[1] = 0
+    velocity[2] = 0
+  }
+
+  const propellantFlowKgS = (thrust * MAX_THRUST_N) / (ENGINE_ISP_S * STANDARD_GRAVITY)
+  const fuel = clamp(
+    state.fuel - ((propellantFlowKgS * simDt) / PROPELLANT_MASS_KG) * 100,
+    0,
+    100,
+  )
 
   return {
     ...state,
+    position,
+    velocity,
     quaternion,
     throttle,
     throttleKeys: { up: controls.throttleUp, down: controls.throttleDown },

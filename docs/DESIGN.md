@@ -53,10 +53,10 @@ plant without changing any view.
 
 ```
 [1 INPUT]          [2 PLANT]            [3 STATE]           [4 VIEWS]
- keyboard    ──►   step(state, dt,  ──►  VehicleState   ──►   Scene3D
- hold buttons       command)             (the contract)       Hud
+ keyboard    ──►   step(state, dt,  ──►  VehicleState   ──►   Scene3D / TrajectoryView
+ hold buttons       command)             (the contract)       NavigationPanel / RawStatePanel
  (later: pad,           │                                      MissionProfile
-  replay, policy)       │                                      SpacecraftControl
+  replay, policy)       │                                      SpacecraftControl / SpeedControl
                         ▼                                      HealthStatus
                   [5 TIME / TRANSPORT]
                   fixed dt · sim clock · command log · later WebSocket
@@ -106,16 +106,19 @@ interface SimAdapter {
 }
 ```
 
-**As-built differences (Day 1):** Three.js Y-up, altitude on `y`; quaternion
+**As-built differences:** Three.js Y-up, altitude on `y`; quaternion
 `(x,y,z,w)`; the only attitude command is a lateral tilt about `+Z`, surfaced as
-`tiltDeg()` (`R`/`L`); throttle 0–1; fuel in percent; no mass, thrust in newtons,
-`t_s`, status, or `SimAdapter` yet. See D-003 … D-007 in the decisions log.
+`tiltDeg()` (`R`/`L`); throttle 0–1; fuel in percent. Mass, thrust in newtons,
+gravity and translation are implemented locally via `massKg()` and
+`thrustNewtons()`. Still missing: `t_s`, status, `SimAdapter`, and the ENU wire
+conversion. Panel visibility is UI state, not part of `VehicleState`. See
+D-003 … D-008 in the decisions log.
 
 ## 6. Timing model
 
 ```
 requestAnimationFrame (display rate)
-  ├─ accumulate real dt (cap 0.25 s to survive tab switches)
+  ├─ accumulate real dt (cap 0.1 s to survive tab switches)
   ├─ while acc >= FIXED_DT: state = step(state, 0.01, command); acc -= 0.01
   ├─ publish snapshot to views at ~30 Hz
   └─ render: slerp attitude toward the latest state
@@ -134,20 +137,25 @@ requestAnimationFrame (display rate)
 src/
   sim/
     vehicle.ts        state type, constants, pure stepState(), derived math
-    useVehicle.ts     rAF loop, keyboard → Command, publish snapshots
+    nav.ts            pure navigation geometry + sensor placeholders
+    useVehicle.ts     fixed-step rAF loop, keyboard → Command, snapshots
   components/
     Scene3D.tsx       Three.js canvas: model, flame, RCS, camera
-    Hud.tsx           overlay telemetry + raw-state panel
+    NavigationPanel.tsx  always-visible NAV values + sensor status
+    RawStatePanel.tsx  Enter-only raw JSON overlay
+    TrajectoryView.tsx  2D PDI console screen
     MissionProfile.tsx  phase timeline
     SpacecraftControl.tsx  arm, throttle, on-screen hold buttons
+    SpeedControl.tsx  time scale
     HealthStatus.tsx  derived telemetry and warnings
-  App.tsx             layout, wires state to panels
+  App.tsx             layout, wires state to panels, panel hotkeys
   index.css           mission-control theme
-public/               future GLB assets
+public/               cx3-pdi.glb and companion assets
 ```
 
 Target additions: `contract/`, `sim/dynamics.ts`, `transport/localAdapter.ts`,
-`transport/wsAdapter.ts`, `components/TrajectoryPlot.tsx`, `sim/recorder.ts`.
+`transport/wsAdapter.ts`, `sim/recorder.ts`. `Hud.tsx` and `PdiConsole.tsx` are
+currently unused; either revive or delete them before adding another nav view.
 
 ## 8. Mission phases
 
@@ -177,27 +185,29 @@ enforce them.
 
 ## 10. Acceptance criteria
 
-**Day 1 (met by the current slice)**
+**Met by the current slice**
 
 - Refresh shows Braking at 15 km and 3:00.
 - → tilts the vehicle and the `TILT` readout together (currently about `+Z`).
-- ↑ raises the flame to 100%, ↓ lowers it without translating the ship.
+- ↑/↓ change throttle and thrust; gravity and thrust both affect motion.
 - The phase highlight advances when the timer reaches zero.
-- Enter toggles the raw state.
+- Navigation is always visible below Spacecraft Control; Enter opens only the raw JSON overlay.
+- Free-fall test passes: 10 s gives `v ≈ −16.2 m/s` and about 81 m of drop.
+- The plant advances in fixed 10 ms steps.
 
 **MVP (next milestone)**
 
-- Gravity + translation with a passing free-fall test.
-- Fixed timestep; identical replay from an identical command log.
+- Identical replay from an identical command log (`t_s` + recorder).
 - 2D trajectory plot agrees with the 3D scene.
-- Fuel/mass/TWR are physically consistent.
-- Phase gating changes what the controls can do.
 - Landed vs. crashed is decided from state, with a reason shown.
-- One-command run, fullscreen, reset, pause, time scale.
+- Phase gating changes what the controls can do.
+- One-command run, fullscreen, pause.
+- Sensor status reflects real or explicitly simulated sensor models.
 
 ## 11. Evolution path
 
-1. **Now:** local TS plant, placeholder model, one screen.
+1. **Now:** local fixed-step TS plant, GLB lander, two screens (3D state and
+   trajectory console).
 2. **Post-demo:** extract `SimAdapter`; add FastAPI + WebSocket plant; add
    recorder/replay and SQLite telemetry.
 3. **Later:** MATLAB/Simulink reference path drawn as a ghost; RL policy sends

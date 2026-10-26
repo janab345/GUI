@@ -57,8 +57,8 @@ critical path for this sprint.
 > You press arrow keys. Those keys become two commands: `throttle` and `rcs`
 > (tilt left / right). A pure function `stepState()` takes the current vehicle
 > state plus those commands, advances time by one small step, applies the
-> current physics rules (today: throttle, tilt, fuel; next: gravity and thrust),
-> and returns a new state. The 3D scene and the HUD both simply **draw** that
+> current physics rules (throttle, tilt, mass, thrust, gravity, fuel), and
+> returns a new state. The 3D scene and the HUD both simply **draw** that
 > state. Nothing else simulates.
 
 Every file in the repo is one of four things: **input**, **math**, **state**, or
@@ -79,7 +79,7 @@ architecture.
 | **Gimbal** | Engine tilts slightly to steer without turning the whole ship | Not implemented; out of scope |
 | **TWR** | Thrust-to-Weight Ratio. ≤ 1 means you cannot stop falling | Not displayed yet; worth adding |
 | **Δv (delta-v)** | Total speed-change budget available in the tanks | Later; explains why fuel matters |
-| **HUD** | Head-Up Display. An overlay of numbers on top of the 3D view — plain React DOM, not 3D | `Hud.tsx` |
+| **HUD** | Head-Up Display. An overlay of numbers on top of the 3D view — plain React DOM, not 3D | `NavigationPanel.tsx`, `HealthStatus.tsx` |
 | **Phase** | A stage of descent with its own rules (Braking → Terminal) | `MissionProfile.tsx` |
 | **Telemetry** | The numbers the vehicle reports: altitude, speed, fuel | `HealthStatus.tsx` |
 | **Target** | The landing pad coordinates being aimed at | `state.target` |
@@ -114,11 +114,11 @@ points where the nose points. Rotating the ship redirects thrust. Killing
 horizontal velocity is an attitude problem, not a throttle problem. That is the
 actual skill this trainer teaches.
 
-**Current code status:** there is no gravity and no translation. Velocity is a
-constant `[0, 0, 200]` and position never changes. The ship rotates, the flame
-changes, and fuel drains. This is "visualization mode" and is intentional for
-Day 1, but it means altitude and speed never change. Adding equations 1–3 is the
-single biggest step forward and is roughly 30 lines.
+**Current code status:** equations 1–3 are implemented. `stepState()` integrates
+thrust along the body `+Y` axis, adds lunar gravity, and updates position and
+velocity in fixed 10 ms steps. Mass comes from `fuel`; thrust comes from
+`throttle × 45 000 N`. The ship now falls, translates, and stops at the surface.
+`npm test` checks the 10 s free-fall case and the mass/TWR values.
 
 ---
 
@@ -235,7 +235,9 @@ Read these in order, with the five boxes in mind:
 | Time + input | `src/sim/useVehicle.ts` | rAF loop, variable `dt`, keyboard listeners |
 | Composition | `src/App.tsx` | Reads state once, passes props down |
 | 3D view | `src/components/Scene3D.tsx` | `useFrame`, slerp, flame — no physics |
-| HUD view | `src/components/Hud.tsx` | Formatted numbers over the canvas |
+| Navigation panel | `src/components/NavigationPanel.tsx` | Always-visible operator NAV view |
+| Raw state | `src/components/RawStatePanel.tsx` | Enter-only debug JSON overlay |
+| Nav derivation | `src/sim/nav.ts` | Pure range/bearing/speed math for the panel |
 | Panels | `MissionProfile`, `SpacecraftControl`, `HealthStatus` | Props in, JSX out |
 
 If you can explain those six in one sentence each, you understand the codebase.
@@ -254,9 +256,9 @@ Never study for two weeks and then start coding.
 |---|---|---|
 | 1 | Run the app. Read `App.tsx` + `vehicle.ts` | Change start altitude to 10 km and phase duration to 60 s. Commit. |
 | 2 | Frames and units (§5) | Rename state fields to `_m`, `_mps`, `_n`. Draw the five-box diagram. |
-| 3 | Quaternions (§4) + 3Blue1Brown video | Watch the raw-state panel while pressing ←/→. Note the four numbers changing. |
-| 4 | Physics 1–3 (§3) | Add gravity + translation to `stepState()` **with a test**: from rest after 10 s, vertical speed ≈ −16.2 m/s, altitude drop ≈ 81 m. |
-| 5 | Fixed timestep | Add the accumulator (10 ms). Confirm the free-fall test passes at any refresh rate. |
+| 3 | Quaternions (§4) + 3Blue1Brown video | Press Enter to open RAW state while pressing ←/→. Note the four quaternion numbers changing. |
+| 4 | Physics 1–3 (§3) | **Done.** Gravity + translation + free-fall test in `vehicle.test.ts`. |
+| 5 | Fixed timestep | **Done.** 10 ms accumulator in `useVehicle.ts`. |
 | 6 | Trajectory thinking | Build a 2D plot (canvas/SVG): top-down path, altitude vs time, target dot. No Three.js. |
 | 7 | Review | Fill in `nt/DECISIONS.md`; confirm every entry matches the code. |
 
@@ -327,7 +329,7 @@ Electron, databases, Python async, NumPy.
 2. What happens when you press ←? Which file handles it?
 3. Why a quaternion instead of roll / pitch / yaw?
 4. Which order are the four quaternion numbers in this repo?
-5. Where is gravity applied, and why does the ship not move today?
+5. Where is gravity applied, and why does the ship fall even at zero throttle?
 6. Why must physics use a fixed timestep?
 7. If the TS sim is replaced by Python, which files change and which do not?
 8. What does the HUD read, and does it ever compute physics?

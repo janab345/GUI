@@ -7,7 +7,7 @@ import {
   type VehicleState,
 } from './vehicle'
 
-const STORAGE_KEY = 'llv-pdi.vehicle.v1'
+const STORAGE_KEY = 'llv-pdi.vehicle.v2'
 
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
@@ -65,7 +65,6 @@ export function loadVehicleState(): VehicleState {
         ? clamp(stored.phaseRemaining, 0, phaseDuration(phaseIndex))
         : phaseDuration(phaseIndex),
       fuel: isNumber(stored.fuel) ? clamp(stored.fuel, 0, 100) : base.fuel,
-      rawVisible: typeof stored.rawVisible === 'boolean' ? stored.rawVisible : base.rawVisible,
     }
   } catch {
     return base

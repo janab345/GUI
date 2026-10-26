@@ -10,7 +10,8 @@ A frontend-only MVP for the Lunar Landing Vehicle (LLV) PDI console. Four module
 | Mission Profile | `src/components/MissionProfile.tsx` | 5-phase timeline with active/complete states. |
 | Spacecraft Control | `src/components/SpacecraftControl.tsx` | Engine arm, throttle readout, keyboard/hold-button flight controls. |
 | Health & Status | `src/components/HealthStatus.tsx` | Telemetry derived from the shared vehicle state. |
-| HUD | `src/components/Hud.tsx` | Corner phase/clock/altitude/speed readout + Enter raw-state panel. |
+| Navigation | `src/components/NavigationPanel.tsx` | Always-visible nav values and sensor status below Spacecraft Control. |
+| Raw State | `src/components/RawStatePanel.tsx` | Debug JSON overlay, opened only with Enter. |
 
 ## Project Structure
 
@@ -22,14 +23,17 @@ pdi-gui/
 │   ├── App.tsx               # Layout; wires the shared vehicle state to panels
 │   ├── index.css             # Dark mission-control theme
 │   ├── sim/
-│   │   ├── vehicle.ts        # State type, initial state, pure step(), HUD math
-│   │   └── useVehicle.ts     # Keyboard input, rAF loop, ~30 Hz snapshots
+│   │   ├── vehicle.ts        # State type, pure fixed-step physics, derived math
+│   │   ├── nav.ts            # Range, bearing, flight-path angle, sensor status
+│   │   └── useVehicle.ts     # Keyboard input, fixed-step rAF loop, ~30 Hz snapshots
 │   └── components/
 │       ├── Scene3D.tsx       # 3D canvas + lander, driven by the quaternion
+│       ├── NavigationPanel.tsx  # always-visible right-rail nav panel
+│       ├── RawStatePanel.tsx    # Enter-only JSON overlay
 │       ├── MissionProfile.tsx
 │       ├── SpacecraftControl.tsx
 │       ├── HealthStatus.tsx
-│       └── Hud.tsx
+│       └── Hud.tsx           # legacy, currently unused
 └── public/                   # Drop GLB files here when ready
 ```
 
@@ -44,7 +48,7 @@ npm run dev
 
 ### 1. Shared Vehicle State
 - `src/sim/vehicle.ts` defines one `VehicleState`: position, velocity, quaternion, throttle, RCS flags, phase, target
-- `useVehicle()` owns the state and advances it once per animation frame via the pure `stepState()`
+- `useVehicle()` owns the state and advances it in fixed 10 ms steps via the pure `stepState()`
 - Panels never simulate; they render the same state message (the future Python/WebSocket seam)
 
 ### 2. Three.js via React Three Fiber
@@ -60,9 +64,9 @@ npm run dev
 - `HealthStatus` receives derived values as props; it holds no state of its own
 
 ### 4. Keyboard Flight
-- `↑ / ↓` ramp throttle up/down; they never translate the ship
-- `← / →` fire the RCS jets and pitch the vehicle; tilt is read from the quaternion
-- `Enter` toggles the raw-state panel
+- `↑ / ↓` ramp throttle up/down; thrust and gravity now change position and velocity
+- `← / →` fire the RCS jets and tilt the vehicle; tilt is read from the quaternion
+- `Enter` toggles the raw-state JSON overlay; navigation is always visible
 - The phase clock is 3:00 per phase and advances on its own; Braking starts at 15 km
 
 ## How to Extend
