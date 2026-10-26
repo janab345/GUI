@@ -13,7 +13,7 @@ describe('NavigationPanel', () => {
     expect(html).toContain('Navigation')
     expect(html).toContain('ALT AGL')
     expect(html).toContain('15.00 km')
+    expect(html).toContain('NAV MODE')
     expect(html).toContain('SIM')
-    expect(html).toContain('SENSORS NOT MODELLED')
   })
 })
